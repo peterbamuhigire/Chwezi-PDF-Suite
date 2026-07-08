@@ -9,7 +9,7 @@ The repository started as a PDF-focused project. It now includes conversion, ext
 The main conversion tools are:
 
 - `pptx_to_epub.py`: converts PowerPoint files into structured Markdown
-- `pdf_to_epub.py`: converts text-based PDFs into structured Markdown
+- `pdf_to_epub.py`: converts PDF, EPUB, DOCX, and DOC files into structured Markdown
 
 Existing PDF tools still in the repo:
 
@@ -43,17 +43,20 @@ python pptx_to_epub.py --input "C:\path\deck.pptx" --output-dir "C:\path\markdow
 python pptx_to_epub.py --input "C:\path\slides" --output-dir "C:\path\markdown"
 ```
 
-## Tool: PDF To Markdown
+## Tool: Document To Markdown
 
-`pdf_to_epub.py` converts text-based `.pdf` files into Markdown by extracting page text and inferring headings, paragraphs, lists, and simple code blocks.
+`pdf_to_epub.py` converts `.pdf`, `.epub`, `.docx`, and legacy `.doc` files into Markdown. Directory mode can process all supported formats in one batch.
 
 What it does:
 
 - extracts readable text from PDF pages
 - infers heading levels from font size and emphasis
+- extracts DOCX paragraphs, headings, lists, and simple tables
+- extracts EPUB spine content in reading order
+- converts legacy DOC files through LibreOffice or Microsoft Word when available
 - merges wrapped lines into paragraphs
 - renders detected lists as Markdown lists
-- supports a single PDF file or an entire directory
+- supports a single document file or an entire directory
 - includes both GUI and CLI modes
 
 What it does not do:
@@ -71,7 +74,7 @@ CLI:
 
 ```bash
 python pdf_to_epub.py --input "C:\path\book.pdf" --output-dir "C:\path\markdown"
-python pdf_to_epub.py --input "C:\path\pdfs" --output-dir "C:\path\markdown"
+python pdf_to_epub.py --input "C:\path\library" --output-dir "C:\path\markdown"
 ```
 
 ## Installation
@@ -82,11 +85,15 @@ cd pyPDFLibrarianSort
 pip install -r requirements.txt
 ```
 
+The Markdown converter scripts also auto-install missing Python packages when run directly, so a user can usually start with `python pdf_to_epub.py` or `python pptx_to_epub.py` from a fresh checkout.
+
 Core dependencies for the Markdown converters:
 
 - `python-pptx`
 - `pdfplumber`
 - `pypdf`
+
+Legacy `.doc` conversion additionally requires either LibreOffice on `PATH` or Microsoft Word. The tool will auto-install `pywin32` when it needs Word automation.
 
 ## Documentation
 

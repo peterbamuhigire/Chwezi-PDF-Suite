@@ -1,29 +1,55 @@
 #!/usr/bin/env python3
 """
-PDF to Markdown converter.
+Document to Markdown converter.
 
-Extracts readable text from `.pdf` files and builds structured Markdown
-files that are easier for AI tools to ingest. Supports single-file and
-whole-directory processing with both CLI and tkinter GUI entry points.
+Extracts readable text from `.pdf`, `.epub`, `.docx`, and `.doc` files and
+builds structured Markdown files that are easier for AI tools to ingest.
+Supports single-file and whole-directory processing with both CLI and tkinter
+GUI entry points.
 """
 
 from __future__ import annotations
 
 import argparse
 import re
+import shutil
 import statistics
+import subprocess
 import sys
+import tempfile
 import threading
+import zipfile
 from dataclasses import dataclass
+from html import unescape
+from html.parser import HTMLParser
 from pathlib import Path
 from queue import Empty, Queue
+from xml.etree import ElementTree as ET
+
+from dependency_bootstrap import ensure_packages
+
+
+ensure_packages(
+    [
+        ("pdfplumber", "pdfplumber>=0.11.0"),
+        ("pypdf", "pypdf>=3.17.0"),
+    ]
+)
 
 import pdfplumber
 from pypdf import PdfReader
 
 
+SUPPORTED_EXTENSIONS = {".pdf", ".epub", ".docx", ".doc"}
 LIST_RE = re.compile(r"^(?P<marker>(?:[-*\u2022o])|(?:\d+[.)]))\s+(?P<text>.+)$")
 ROMAN_RE = re.compile(r"^(?=[ivxlcdmIVXLCDM]+$)[IVXLCDMivxlcdm]{1,8}$")
+WORD_NS = {
+    "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+}
+EPUB_NS = {
+    "container": "urn:oasis:names:tc:opendocument:xmlns:container",
+    "opf": "http://www.idpf.org/2007/opf",
+}
 
 
 @dataclass
@@ -50,6 +76,72 @@ class MarkdownBlock:
 class ConversionIssue:
     source: Path
     error: str
+
+
+class HtmlToMarkdownParser(HTMLParser):
+    HEADING_TAGS = {"h1", "h2", "h3", "h4", "h5", "h6"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.blocks: list[MarkdownBlock] = []
+        self.stack: list[str] = []
+        self.current_tag: str | None = None
+        self.current_text: list[str] = []
+        self.list_depth = 0
+
+    def handle_starttag(self, tag, attrs):
+        tag = tag.lower()
+        self.stack.append(tag)
+        if tag in {"p", "blockquote"} and "li" in self.stack and self.current_tag == "li":
+            return
+        if tag in self.HEADING_TAGS or tag in {"p", "li", "pre", "blockquote"}:
+            self._flush_current()
+            self.current_tag = tag
+            self.current_text = []
+        elif tag in {"ul", "ol"}:
+            self._flush_current()
+            self.list_depth += 1
+        elif tag == "br":
+            self.current_text.append("\n")
+
+    def handle_endtag(self, tag):
+        tag = tag.lower()
+        if tag == self.current_tag:
+            self._flush_current()
+        elif tag in {"ul", "ol"}:
+            self._flush_current()
+            self.list_depth = max(0, self.list_depth - 1)
+        for index in range(len(self.stack) - 1, -1, -1):
+            if self.stack[index] == tag:
+                del self.stack[index]
+                break
+
+    def handle_data(self, data):
+        if self.current_tag:
+            self.current_text.append(data)
+
+    def close(self):
+        super().close()
+        self._flush_current()
+
+    def _flush_current(self):
+        if not self.current_tag:
+            return
+
+        text = clean_text(" ".join(part.strip() for part in self.current_text if part.strip()))
+        if text:
+            if self.current_tag in self.HEADING_TAGS:
+                level = int(self.current_tag[1])
+                self.blocks.append(MarkdownBlock(kind="heading", text=text, level=max(2, min(level + 1, 4))))
+            elif self.current_tag == "li":
+                self.blocks.append(MarkdownBlock(kind="list", text=text, level=max(0, self.list_depth - 1)))
+            elif self.current_tag == "pre":
+                self.blocks.append(MarkdownBlock(kind="code", text=text))
+            else:
+                self.blocks.append(MarkdownBlock(kind="paragraph", text=text))
+
+        self.current_tag = None
+        self.current_text = []
 
 
 def clean_text(value: str) -> str:
@@ -293,6 +385,8 @@ def render_markdown(title: str, blocks: list[MarkdownBlock]) -> str:
 
 
 class PdfToMarkdownConverter:
+    supported_extensions = SUPPORTED_EXTENSIONS
+
     def extract_blocks(self, pdf_path: Path) -> tuple[str, list[MarkdownBlock]]:
         reader = PdfReader(str(pdf_path))
         fallback_title = metadata_title(reader) or pdf_path.stem.replace("_", " ").strip() or pdf_path.stem
@@ -302,8 +396,174 @@ class PdfToMarkdownConverter:
             title = fallback_title
         return title, blocks
 
-    def build_markdown(self, pdf_path: Path, output_path: Path) -> Path:
-        title, blocks = self.extract_blocks(pdf_path)
+    def extract_docx_blocks(self, docx_path: Path) -> tuple[str, list[MarkdownBlock]]:
+        paragraphs: list[MarkdownBlock] = []
+        title = docx_path.stem.replace("_", " ").strip() or docx_path.stem
+
+        with zipfile.ZipFile(docx_path) as archive:
+            document_xml = archive.read("word/document.xml")
+
+        root = ET.fromstring(document_xml)
+        body = root.find("w:body", WORD_NS)
+        if body is None:
+            return title, []
+
+        for child in body:
+            if child.tag == f"{{{WORD_NS['w']}}}p":
+                block = self._docx_paragraph_to_block(child)
+                if not block:
+                    continue
+                if title == docx_path.stem.replace("_", " ").strip() and block.kind == "heading" and block.level == 2:
+                    title = block.text
+                    continue
+                paragraphs.append(block)
+            elif child.tag == f"{{{WORD_NS['w']}}}tbl":
+                rows = self._docx_table_rows(child)
+                if rows:
+                    paragraphs.append(MarkdownBlock(kind="paragraph", text="\n".join(rows)))
+
+        return title, paragraphs
+
+    def _docx_paragraph_to_block(self, paragraph) -> MarkdownBlock | None:
+        text = clean_text("".join(node.text or "" for node in paragraph.findall(".//w:t", WORD_NS)))
+        if not text:
+            return None
+
+        style = ""
+        p_style = paragraph.find("w:pPr/w:pStyle", WORD_NS)
+        if p_style is not None:
+            style = p_style.attrib.get(f"{{{WORD_NS['w']}}}val", "")
+
+        num_pr = paragraph.find("w:pPr/w:numPr", WORD_NS)
+        if num_pr is not None or style.lower().startswith("list"):
+            ilvl = paragraph.find("w:pPr/w:numPr/w:ilvl", WORD_NS)
+            level = 0
+            if ilvl is not None:
+                try:
+                    level = int(ilvl.attrib.get(f"{{{WORD_NS['w']}}}val", "0"))
+                except ValueError:
+                    level = 0
+            return MarkdownBlock(kind="list", text=text, level=level)
+
+        heading_match = re.match(r"heading([1-6])", style.replace(" ", "").lower())
+        if heading_match:
+            return MarkdownBlock(kind="heading", text=text, level=max(2, min(int(heading_match.group(1)) + 1, 4)))
+
+        return MarkdownBlock(kind="paragraph", text=text)
+
+    def _docx_table_rows(self, table) -> list[str]:
+        rows: list[str] = []
+        for row in table.findall("w:tr", WORD_NS):
+            cells = []
+            for cell in row.findall("w:tc", WORD_NS):
+                text = clean_text(" ".join(node.text or "" for node in cell.findall(".//w:t", WORD_NS)))
+                cells.append(text)
+            if cells:
+                rows.append("| " + " | ".join(cells) + " |")
+        return rows
+
+    def extract_epub_blocks(self, epub_path: Path) -> tuple[str, list[MarkdownBlock]]:
+        with zipfile.ZipFile(epub_path) as archive:
+            opf_path = self._epub_opf_path(archive)
+            opf_root = ET.fromstring(archive.read(opf_path))
+            base = Path(opf_path).parent
+            manifest = {
+                item.attrib["id"]: item.attrib
+                for item in opf_root.findall(".//opf:manifest/opf:item", EPUB_NS)
+                if "id" in item.attrib and "href" in item.attrib
+            }
+            title_node = opf_root.find(".//{http://purl.org/dc/elements/1.1/}title")
+            title = clean_text(title_node.text if title_node is not None else "") or epub_path.stem.replace("_", " ")
+            blocks: list[MarkdownBlock] = []
+
+            for itemref in opf_root.findall(".//opf:spine/opf:itemref", EPUB_NS):
+                item = manifest.get(itemref.attrib.get("idref", ""))
+                if not item:
+                    continue
+                media_type = item.get("media-type", "")
+                if media_type not in {"application/xhtml+xml", "text/html"}:
+                    continue
+                content_path = (base / item["href"]).as_posix()
+                parser = HtmlToMarkdownParser()
+                parser.feed(unescape(archive.read(content_path).decode("utf-8", errors="replace")))
+                parser.close()
+                blocks.extend(parser.blocks)
+
+        return title, blocks
+
+    def _epub_opf_path(self, archive: zipfile.ZipFile) -> str:
+        container = ET.fromstring(archive.read("META-INF/container.xml"))
+        rootfile = container.find(".//container:rootfile", EPUB_NS)
+        if rootfile is None:
+            raise ValueError("EPUB container does not point to an OPF package.")
+        return rootfile.attrib["full-path"]
+
+    def extract_doc_blocks(self, doc_path: Path) -> tuple[str, list[MarkdownBlock]]:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            converted = self._convert_legacy_doc_to_docx(doc_path, temp_path)
+            return self.extract_docx_blocks(converted)
+
+    def _convert_legacy_doc_to_docx(self, doc_path: Path, output_dir: Path) -> Path:
+        soffice = shutil.which("soffice") or shutil.which("libreoffice")
+        if soffice:
+            subprocess.run(
+                [
+                    soffice,
+                    "--headless",
+                    "--convert-to",
+                    "docx",
+                    "--outdir",
+                    str(output_dir),
+                    str(doc_path),
+                ],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            converted = output_dir / f"{doc_path.stem}.docx"
+            if converted.exists():
+                return converted
+
+        try:
+            ensure_packages([("win32com.client", "pywin32")])
+            import win32com.client  # type: ignore
+        except ImportError as exc:
+            raise RuntimeError(
+                "Legacy .doc conversion requires LibreOffice on PATH or Microsoft Word with pywin32 available."
+            ) from exc
+
+        converted = output_dir / f"{doc_path.stem}.docx"
+        word = win32com.client.Dispatch("Word.Application")
+        word.Visible = False
+        document = None
+        try:
+            document = word.Documents.Open(str(doc_path.resolve()))
+            document.SaveAs(str(converted.resolve()), FileFormat=16)
+        finally:
+            if document is not None:
+                document.Close(False)
+            word.Quit()
+
+        if not converted.exists():
+            raise RuntimeError("Legacy .doc conversion did not produce a .docx file.")
+        return converted
+
+    def extract_document_blocks(self, source_path: Path) -> tuple[str, list[MarkdownBlock]]:
+        suffix = source_path.suffix.lower()
+        if suffix == ".pdf":
+            return self.extract_blocks(source_path)
+        if suffix == ".docx":
+            return self.extract_docx_blocks(source_path)
+        if suffix == ".doc":
+            return self.extract_doc_blocks(source_path)
+        if suffix == ".epub":
+            return self.extract_epub_blocks(source_path)
+        raise ValueError(f"Unsupported file type: {source_path.suffix}")
+
+    def build_markdown(self, source_path: Path, output_path: Path) -> Path:
+        title, blocks = self.extract_document_blocks(source_path)
         markdown = render_markdown(title, blocks)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(markdown, encoding="utf-8")
@@ -311,66 +571,93 @@ class PdfToMarkdownConverter:
 
     def collect_inputs(self, input_path: Path) -> list[Path]:
         if input_path.is_file():
-            if input_path.suffix.lower() != ".pdf":
-                raise ValueError("Only .pdf files are supported.")
+            if input_path.suffix.lower() not in self.supported_extensions:
+                supported = ", ".join(sorted(self.supported_extensions))
+                raise ValueError(f"Only {supported} files are supported.")
             return [input_path]
 
         if input_path.is_dir():
             files = sorted(
-                (path for path in input_path.rglob("*.pdf") if path.is_file()),
+                (path for path in input_path.rglob("*") if path.is_file() and path.suffix.lower() in self.supported_extensions),
                 key=lambda path: (path.stat().st_size, str(path).lower()),
             )
             if not files:
-                raise ValueError(f"No .pdf files found in {input_path}")
+                supported = ", ".join(sorted(self.supported_extensions))
+                raise ValueError(f"No supported files ({supported}) found in {input_path}")
             return files
 
         raise ValueError(f"Input path not found: {input_path}")
+
+    def output_path_for(self, source_path: Path, input_path: Path, output_dir: Path, used_paths: set[Path]) -> Path:
+        base_dir = input_path if input_path.is_dir() else input_path.parent
+        if input_path.is_dir():
+            relative_path = source_path.relative_to(base_dir).with_suffix(".md")
+            output_path = output_dir / relative_path
+        else:
+            output_path = output_dir / f"{source_path.stem}.md"
+
+        normalized = output_path.resolve()
+        if normalized not in used_paths:
+            used_paths.add(normalized)
+            return output_path
+
+        output_path = output_path.with_name(f"{source_path.stem}_{source_path.suffix.lower().lstrip('.')}.md")
+        normalized = output_path.resolve()
+        counter = 2
+        while normalized in used_paths:
+            output_path = output_path.with_name(f"{source_path.stem}_{source_path.suffix.lower().lstrip('.')}_{counter}.md")
+            normalized = output_path.resolve()
+            counter += 1
+        used_paths.add(normalized)
+        return output_path
 
     def convert(self, input_path: Path, output_dir: Path, progress_callback=None) -> list[Path]:
         files = self.collect_inputs(input_path)
         results: list[Path] = []
         failures: list[ConversionIssue] = []
-        base_dir = input_path if input_path.is_dir() else input_path.parent
+        used_paths: set[Path] = set()
 
         if progress_callback:
-            progress_callback(0, len(files), None, None, f"Found {len(files)} PDF file(s). Processing smaller files first.")
+            progress_callback(
+                0,
+                len(files),
+                None,
+                None,
+                f"Found {len(files)} supported document file(s). Processing smaller files first.",
+            )
 
-        for index, pdf_path in enumerate(files, start=1):
-            if input_path.is_dir():
-                relative_path = pdf_path.relative_to(base_dir).with_suffix(".md")
-                output_path = output_dir / relative_path
-            else:
-                output_path = output_dir / f"{pdf_path.stem}.md"
+        for index, source_path in enumerate(files, start=1):
+            output_path = self.output_path_for(source_path, input_path, output_dir, used_paths)
 
             if progress_callback:
-                size_mb = pdf_path.stat().st_size / (1024 * 1024)
+                size_mb = source_path.stat().st_size / (1024 * 1024)
                 progress_callback(
                     index - 1,
                     len(files),
-                    pdf_path,
+                    source_path,
                     output_path,
-                    f"Processing {index}/{len(files)}: {pdf_path.name} ({size_mb:.1f} MB)",
+                    f"Processing {index}/{len(files)}: {source_path.name} ({size_mb:.1f} MB)",
                 )
 
             try:
                 output_path.parent.mkdir(parents=True, exist_ok=True)
                 output_path.touch(exist_ok=True)
-                result = self.build_markdown(pdf_path, output_path)
+                result = self.build_markdown(source_path, output_path)
                 results.append(result)
             except Exception as exc:
-                failures.append(ConversionIssue(source=pdf_path, error=str(exc)))
+                failures.append(ConversionIssue(source=source_path, error=str(exc)))
                 if progress_callback:
                     progress_callback(
                         index,
                         len(files),
-                        pdf_path,
+                        source_path,
                         output_path,
-                        f"Skipped {pdf_path.name}: {exc}",
+                        f"Skipped {source_path.name}: {exc}",
                     )
                 continue
 
             if progress_callback:
-                progress_callback(index, len(files), pdf_path, result, None)
+                progress_callback(index, len(files), source_path, result, None)
 
         if failures and progress_callback:
             progress_callback(
@@ -391,7 +678,7 @@ def launch_gui():
     class App:
         def __init__(self, root):
             self.root = root
-            self.root.title("PDF to Markdown")
+            self.root.title("Document to Markdown")
             self.root.geometry("860x620")
 
             self.mode = tk.StringVar(value="file")
@@ -415,12 +702,12 @@ def launch_gui():
             main.columnconfigure(1, weight=1)
             main.rowconfigure(5, weight=1)
 
-            ttk.Label(main, text="PDF to Markdown", font=("Segoe UI", 16, "bold")).grid(
+            ttk.Label(main, text="Document to Markdown", font=("Segoe UI", 16, "bold")).grid(
                 row=0, column=0, columnspan=3, sticky="w", **pad
             )
             ttk.Label(
                 main,
-                text="Extract PDF structure into readable Markdown for AI and documentation workflows.",
+                text="Extract PDF, EPUB, DOCX, and DOC content into readable Markdown.",
                 foreground="#555",
             ).grid(row=1, column=0, columnspan=3, sticky="w", **pad)
 
@@ -428,14 +715,14 @@ def launch_gui():
             mode_frame.grid(row=2, column=0, columnspan=3, sticky="ew", **pad)
             ttk.Radiobutton(
                 mode_frame,
-                text="Single PDF file",
+                text="Single document file",
                 variable=self.mode,
                 value="file",
                 command=self._sync_defaults,
             ).grid(row=0, column=0, sticky="w", padx=4, pady=2)
             ttk.Radiobutton(
                 mode_frame,
-                text="Whole directory of PDF files",
+                text="Whole directory of documents",
                 variable=self.mode,
                 value="directory",
                 command=self._sync_defaults,
@@ -445,7 +732,7 @@ def launch_gui():
             paths.grid(row=3, column=0, columnspan=3, sticky="ew", **pad)
             paths.columnconfigure(1, weight=1)
 
-            self._file_row(paths, 0, "PDF file or folder:", self.input_path, self._browse_input)
+            self._file_row(paths, 0, "Document file or folder:", self.input_path, self._browse_input)
             self._file_row(paths, 1, "Output directory:", self.output_dir, self._browse_output)
 
             actions = ttk.Frame(main)
@@ -473,11 +760,17 @@ def launch_gui():
 
         def _browse_input(self):
             if self.mode.get() == "directory":
-                selected = filedialog.askdirectory(title="Select PDF Directory")
+                selected = filedialog.askdirectory(title="Select Document Directory")
             else:
                 selected = filedialog.askopenfilename(
-                    title="Select PDF File",
-                    filetypes=[("PDF files", "*.pdf")],
+                    title="Select Document File",
+                    filetypes=[
+                        ("Supported documents", "*.pdf *.epub *.docx *.doc"),
+                        ("PDF files", "*.pdf"),
+                        ("EPUB files", "*.epub"),
+                        ("Word files", "*.docx *.doc"),
+                        ("All files", "*.*"),
+                    ],
                 )
             if selected:
                 self.input_path.set(selected)
@@ -511,7 +804,7 @@ def launch_gui():
             output_value = self.output_dir.get().strip()
 
             if not input_value:
-                messagebox.showerror("Missing", "Please select a PDF file or directory.")
+                messagebox.showerror("Missing", "Please select a document file or directory.")
                 return
             if not output_value:
                 messagebox.showerror("Missing", "Please select an output directory.")
@@ -597,10 +890,10 @@ def launch_gui():
 
 def build_arg_parser():
     parser = argparse.ArgumentParser(
-        description="Convert PDF text into structured Markdown files."
+        description="Convert PDF, EPUB, DOCX, and DOC files into structured Markdown files."
     )
     parser.add_argument("--gui", action="store_true", help="Launch the converter GUI.")
-    parser.add_argument("--input", help="Path to a .pdf file or a directory containing .pdf files.")
+    parser.add_argument("--input", help="Path to a supported document file or a directory containing supported files.")
     parser.add_argument("--output-dir", help="Directory where Markdown files will be written.")
     return parser
 

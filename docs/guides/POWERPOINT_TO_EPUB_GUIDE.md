@@ -49,6 +49,8 @@ Directory mode:
 python pptx_to_epub.py --input "C:\slides" --output-dir "C:\exports\markdown"
 ```
 
+If `python-pptx` is missing, the tool installs it automatically before conversion starts.
+
 ## Output Behavior
 
 - each `.pptx` produces one `.md`

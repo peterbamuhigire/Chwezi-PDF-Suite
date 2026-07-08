@@ -17,6 +17,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from queue import Empty, Queue
 
+from dependency_bootstrap import ensure_packages
+
+
+ensure_packages([("pptx", "python-pptx>=1.0.2")])
+
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE, PP_PLACEHOLDER
 

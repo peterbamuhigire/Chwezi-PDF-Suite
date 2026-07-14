@@ -3,9 +3,8 @@
 Watch Mode Setup - Interactive configuration
 """
 
-import os
+import importlib.util
 import sys
-import json
 from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -13,10 +12,11 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
+
 def main():
-    print("="*70)
+    print("=" * 70)
     print("  PDF Organizer - Watch Mode Setup")
-    print("="*70)
+    print("=" * 70)
     print()
     print("This will configure automatic PDF organization.")
     print("The watcher will run in the background and organize PDFs")
@@ -26,28 +26,17 @@ def main():
     # Check packages
     print("Checking dependencies...")
     try:
-        from google import genai as google_genai
-        import anthropic
-        import openai
-        from pypdf import PdfReader
-        from watchdog.observers import Observer
+        required_modules = ("google.genai", "anthropic", "openai", "pypdf", "watchdog")
+        missing = [name for name in required_modules if importlib.util.find_spec(name) is None]
+        if missing:
+            raise ImportError(", ".join(missing))
         print("  ✓ All packages installed")
     except ImportError as e:
         print(f"  ❌ Missing package: {e}")
-        print("\nInstalling...")
-        os.system(f'"{sys.executable}" -m pip install anthropic google-genai openai pypdf watchdog --quiet')
-        try:
-            from google import genai as google_genai
-            import anthropic
-            import openai
-            from pypdf import PdfReader
-            from watchdog.observers import Observer
-            print("  ✓ Installed")
-        except ImportError as e2:
-            print(f"  ❌ Install failed: {e2}")
-            print("  Please run: python -m pip install -r requirements.txt")
-            input("Press Enter to exit...")
-            return
+        print("\nRuntime installation is disabled.")
+        print(f"Run explicitly: {sys.executable} -m pip install -r requirements.txt")
+        input("Press Enter to exit...")
+        return
 
     print()
 
@@ -57,7 +46,7 @@ def main():
 
     if Path(auto_downloads).exists():
         use_auto = input("Use this folder? (Y/n): ").strip().lower()
-        if use_auto in ['', 'y', 'yes']:
+        if use_auto in ["", "y", "yes"]:
             downloads = auto_downloads
         else:
             downloads = input("Enter Downloads path: ").strip()
@@ -70,9 +59,9 @@ def main():
 
     if not Path(ebooks).exists():
         create = input(f"\nCreate {ebooks}? (Y/n): ").strip().lower()
-        if create in ['', 'y', 'yes']:
+        if create in ["", "y", "yes"]:
             Path(ebooks).mkdir(parents=True, exist_ok=True)
-            print(f"✓ Created")
+            print("✓ Created")
 
     # Choose provider
     print()
@@ -82,9 +71,9 @@ def main():
     print("3) DeepSeek")
     provider_choice = input("Select provider [1]: ").strip().lower()
 
-    if provider_choice in ['2', 'anthropic', 'a']:
+    if provider_choice in ["2", "anthropic", "a"]:
         provider = "anthropic"
-    elif provider_choice in ['3', 'deepseek', 'd']:
+    elif provider_choice in ["3", "deepseek", "d"]:
         provider = "deepseek"
     else:
         provider = "gemini"
@@ -113,9 +102,9 @@ def main():
 
     # Summary
     print()
-    print("="*70)
+    print("=" * 70)
     print("  Configuration Summary")
-    print("="*70)
+    print("=" * 70)
     print(f"Downloads: {downloads}")
     print(f"Ebooks:    {ebooks}")
     print(f"Provider:  {provider.title()}")
@@ -126,26 +115,28 @@ def main():
     print(f"   • Monitor {downloads} for new PDFs")
     print(f"   • Wait {delay} seconds to batch multiple PDFs together")
     print(f"   • Organize them to {ebooks}")
-    print(f"   • Run continuously until you stop it (Ctrl+C)")
+    print("   • Run continuously until you stop it (Ctrl+C)")
     print()
 
     # Confirm and start
     proceed = input("Start watch mode? (Y/n): ").strip().lower()
-    if proceed not in ['', 'y', 'yes']:
+    if proceed not in ["", "y", "yes"]:
         print("Cancelled")
         return
 
     # Import and run
     print()
-    print("="*70)
+    print("=" * 70)
     print("  Starting Watch Mode")
-    print("="*70)
+    print("=" * 70)
     print()
 
     try:
-        from watch_organizer import PDFWatcher
-        from watchdog.observers import Observer
         import time
+
+        from watchdog.observers import Observer
+
+        from watch_organizer import PDFWatcher
 
         # Create event handler
         event_handler = PDFWatcher(
@@ -153,7 +144,7 @@ def main():
             ebooks_folder=ebooks,
             api_key=api_key,
             provider=provider,
-            batch_delay=delay
+            batch_delay=delay,
         )
 
         # Create observer
@@ -165,9 +156,9 @@ def main():
             while True:
                 time.sleep(1)
         except KeyboardInterrupt:
-            print(f"\n\n{'='*70}")
+            print(f"\n\n{'=' * 70}")
             print("  🛑 Stopping watch mode...")
-            print(f"{'='*70}\n")
+            print(f"{'=' * 70}\n")
             observer.stop()
             event_handler._print_stats()
             print("\n👋 Watch mode stopped. Goodbye!\n")
@@ -176,12 +167,13 @@ def main():
 
     except Exception as e:
         print()
-        print("="*70)
+        print("=" * 70)
         print("  ERROR")
-        print("="*70)
+        print("=" * 70)
         print(f"\n{e}")
 
         import traceback
+
         print("\nFull traceback:")
         print(traceback.format_exc())
 

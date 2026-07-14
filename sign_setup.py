@@ -10,10 +10,11 @@ import sys
 from pathlib import Path
 
 # Fix Windows console encoding issues
-if sys.platform == 'win32':
+if sys.platform == "win32":
     import io
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 # Check dependencies first
 print("=" * 60)
@@ -30,12 +31,9 @@ except ImportError:
 missing = check_dependencies()
 if missing:
     print(f"\nMissing dependencies: {', '.join(missing)}")
-    print("\nInstalling required packages...")
-    import subprocess
-    for package in missing:
-        subprocess.check_call([sys.executable, '-m', 'pip', 'install', package])
-    print("\nDependencies installed! Please run this script again.")
-    sys.exit(0)
+    print("\nInstall them explicitly, then run this command again:")
+    print(f"  {sys.executable} -m pip install {' '.join(missing)}")
+    sys.exit(1)
 
 print("OK All dependencies installed")
 print()
@@ -156,20 +154,19 @@ def main():
     print_header(1, "Select Signature Image")
     print("Choose a PNG image to use as your signature.")
     print()
-    signature_path = get_file_path("Path to signature PNG", extension='.png')
+    signature_path = get_file_path("Path to signature PNG", extension=".png")
     print(f"OK Using signature: {signature_path}")
 
     # Step 2: Select PDFs
     print_header(2, "Select PDFs to Sign")
     print("Choose single PDF file or directory of PDFs.")
     print()
-    input_type = get_choice("What would you like to sign?", [
-        "Single PDF file",
-        "All PDFs in a directory"
-    ])
+    input_type = get_choice(
+        "What would you like to sign?", ["Single PDF file", "All PDFs in a directory"]
+    )
 
     if input_type == "Single PDF file":
-        input_path = get_file_path("Path to PDF file", extension='.pdf')
+        input_path = get_file_path("Path to PDF file", extension=".pdf")
         batch_mode = False
     else:
         input_path = get_directory_path("Path to directory containing PDFs")
@@ -183,19 +180,19 @@ def main():
         print("Signed PDFs will be saved to a subdirectory.")
         print()
         use_default = input("Use default output directory? (Y/n): ").strip().lower()
-        if use_default in ['', 'y', 'yes']:
-            output_path = os.path.join(input_path, 'signed')
+        if use_default in ["", "y", "yes"]:
+            output_path = os.path.join(input_path, "signed")
         else:
             output_path = get_directory_path("Output directory", must_exist=False)
     else:
         print("Where should the signed PDF be saved?")
         print()
         use_default = input("Save next to original with '_signed' suffix? (Y/n): ").strip().lower()
-        if use_default in ['', 'y', 'yes']:
+        if use_default in ["", "y", "yes"]:
             input_file = Path(input_path)
             output_path = str(input_file.parent / f"{input_file.stem}_signed.pdf")
         else:
-            output_path = get_file_path("Output PDF path", extension='.pdf', must_exist=False)
+            output_path = get_file_path("Output PDF path", extension=".pdf", must_exist=False)
 
     print(f"OK Output: {output_path}")
 
@@ -203,25 +200,28 @@ def main():
     print_header(4, "Choose Pages to Sign")
     print("Which pages should receive the signature?")
     print()
-    page_option = get_choice("Page selection:", [
-        "All pages",
-        "First page only",
-        "Last page only",
-        "Odd pages only",
-        "Even pages only",
-        "Custom range (e.g., 1-5,10,15-20)"
-    ])
+    page_option = get_choice(
+        "Page selection:",
+        [
+            "All pages",
+            "First page only",
+            "Last page only",
+            "Odd pages only",
+            "Even pages only",
+            "Custom range (e.g., 1-5,10,15-20)",
+        ],
+    )
 
     if page_option == "All pages":
-        pages = 'all'
+        pages = "all"
     elif page_option == "First page only":
-        pages = 'first'
+        pages = "first"
     elif page_option == "Last page only":
-        pages = 'last'
+        pages = "last"
     elif page_option == "Odd pages only":
-        pages = 'odd'
+        pages = "odd"
     elif page_option == "Even pages only":
-        pages = 'even'
+        pages = "even"
     else:
         pages = input("Enter page range (e.g., 1-5,10,15-20): ").strip()
 
@@ -238,12 +238,7 @@ def main():
     print("  │ 1           2   │")
     print("  └─────────────────┘")
     print()
-    position_map = {
-        1: 'bottom-left',
-        2: 'bottom-right',
-        3: 'top-left',
-        4: 'top-right'
-    }
+    position_map = {1: "bottom-left", 2: "bottom-right", 3: "top-left", 4: "top-right"}
 
     while True:
         try:
@@ -273,7 +268,7 @@ def main():
     print()
     x_offset = get_float("Horizontal margin (inches)", 0.1, 2.0, default=0.5)
     y_offset = get_float("Vertical margin (inches)", 0.1, 2.0, default=0.5)
-    print(f"OK Margins: {x_offset}\" horizontal, {y_offset}\" vertical")
+    print(f'OK Margins: {x_offset}" horizontal, {y_offset}" vertical')
 
     # Step 8: Configure opacity
     print_header(8, "Configure Opacity")
@@ -316,7 +311,7 @@ def main():
         print(f"Skip pages: {skip_pages}")
     print(f"Position:   {position}")
     print(f"Size:       {scale_percent}% of A4 portrait width")
-    print(f"Margins:    {x_offset}\" H, {y_offset}\" V")
+    print(f'Margins:    {x_offset}" H, {y_offset}" V')
     print(f"Opacity:    {opacity_percent}%")
     print(f"Rotation:   {rotation}°")
     print("=" * 60)
@@ -324,7 +319,7 @@ def main():
 
     # Confirmation
     confirm = input("Proceed with signing? (Y/n): ").strip().lower()
-    if confirm not in ['', 'y', 'yes']:
+    if confirm not in ["", "y", "yes"]:
         print("\nAborted.")
         return
 
@@ -346,7 +341,7 @@ def main():
             opacity=opacity,
             rotation=rotation,
             pages=pages,
-            skip_pages=skip_pages
+            skip_pages=skip_pages,
         )
 
         if batch_mode:
@@ -367,10 +362,10 @@ def main():
             print(f"Log file:    {results['log_path']}")
             print()
 
-            if results['failed'] > 0:
+            if results["failed"] > 0:
                 print("Failed files:")
-                for file_result in results['files']:
-                    if not file_result['success']:
+                for file_result in results["files"]:
+                    if not file_result["success"]:
                         print(f"  - {file_result['input_path']}: {file_result['error']}")
 
         else:
@@ -385,8 +380,8 @@ def main():
             print("RESULT")
             print("=" * 60)
 
-            if result['success']:
-                print(f"OK Success!")
+            if result["success"]:
+                print("OK Success!")
                 print(f"  Total pages:  {result['total_pages']}")
                 print(f"  Pages signed: {result['pages_signed']}")
                 print(f"  Output file:  {result['output_path']}")
@@ -398,6 +393,7 @@ def main():
     except Exception as e:
         print(f"\nERROR: {e}")
         import traceback
+
         traceback.print_exc()
         return
 
@@ -406,7 +402,7 @@ def main():
     input("Press Enter to exit...")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:

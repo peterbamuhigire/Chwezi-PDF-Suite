@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using these metadata."
+title: "Chwezi Document Suite"
+type: software
+authors:
+  - family-names: Bamuhigire
+    given-names: Peter
+repository-code: "https://github.com/peterbamuhigire/Chwezi-PDF-Suite"
+version: 0.1.0-alpha.1

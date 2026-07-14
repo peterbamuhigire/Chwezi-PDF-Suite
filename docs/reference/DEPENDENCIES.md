@@ -80,3 +80,7 @@ Version strings above are not pins. A lock file and compatibility CI must establ
 - verify package and import names to prevent dependency confusion;
 - never bundle binaries, fonts, icons, certificates or OCR data without redistribution evidence.
 
+The 2026-07-14 workstation audit found vulnerable older environment packages, including
+`pypdf` 6.10.2 and Pillow 12.2.0. The package floors are therefore `pypdf>=6.13.3` and
+`pillow>=12.3`; findings in unrelated globally installed packages are not evidence about a
+clean Chwezi installation and must be re-audited in an isolated release environment.

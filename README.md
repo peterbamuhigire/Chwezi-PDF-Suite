@@ -1,120 +1,109 @@
-# pyPDFLibrarianSort
+# Chwezi Document Suite
 
-Python tools workspace for practical document and content-processing utilities.
+Chwezi Document Suite is becoming a privacy-first, offline-capable document-processing
+platform for desktop users, command-line automation, local web workflows, and Python
+integrations. The project is in an early transformation release: its tested foundation and
+legacy Markdown converters are available, while the broader PDF, OCR, workflow, desktop, and
+web capabilities remain roadmap work.
 
-The repository started as a PDF-focused project. It now includes conversion, extraction, organization, and publishing helpers, with a stronger focus on Markdown as the output format for downstream AI use.
+## What works in this alpha
 
-## Current Direction
+- A typed `chwezi_docs` Python package and `DocumentSuite` facade
+- A `chwezi` CLI with `version`, `capabilities`, and single-file `convert` commands
+- Non-destructive output collision policies and staged output promotion
+- Capability-aware PDF, DOCX, PPTX, EPUB, and legacy DOC to Markdown routes
+- Transitional legacy applications for visual signature placement and document organisation
 
-The main conversion tools are:
+The conversion routes extract text and structure. They do not promise pixel-perfect layout,
+OCR, image preservation, or cryptographic signing. Run `chwezi capabilities` to see which
+routes are actually available on the current machine.
 
-- `pptx_to_epub.py`: converts PowerPoint files into structured Markdown
-- `pdf_to_epub.py`: converts PDF, EPUB, DOCX, and DOC files into structured Markdown
+## Install for development
 
-Existing PDF tools still in the repo:
-
-- `organize_batch.py`: AI-assisted PDF organization
-- `pdf_signature.py`: PDF signature placement with GUI support
-- `watch_organizer.py`: watch-mode PDF organization
-
-## Tool: PowerPoint To Markdown
-
-`pptx_to_epub.py` converts `.pptx` files into Markdown by extracting slide text and preserving slide structure.
-
-What it does:
-
-- extracts text from slide titles, text boxes, and tables
-- preserves slide order
-- renders nested bullets as nested Markdown lists
-- creates one Markdown section per slide
-- supports a single PowerPoint file or an entire directory
-- includes both GUI and CLI modes
-
-GUI:
+Python 3.11 or later is required. Python 3.12 is the primary development version.
 
 ```bash
-python pptx_to_epub.py
+git clone https://github.com/peterbamuhigire/Chwezi-PDF-Suite.git
+cd Chwezi-PDF-Suite
+python -m pip install -e ".[dev,extract]"
 ```
 
-CLI:
+Dependencies are never installed silently at application runtime. Optional features report
+the missing capability and an explicit installation command.
+
+## Quick start
 
 ```bash
-python pptx_to_epub.py --input "C:\path\deck.pptx" --output-dir "C:\path\markdown"
-python pptx_to_epub.py --input "C:\path\slides" --output-dir "C:\path\markdown"
+chwezi version
+chwezi capabilities
+chwezi convert report.pdf --to markdown --output-dir output
 ```
 
-## Tool: Document To Markdown
+```python
+from pathlib import Path
 
-`pdf_to_epub.py` converts `.pdf`, `.epub`, `.docx`, and legacy `.doc` files into Markdown. Directory mode can process all supported formats in one batch.
+from chwezi_docs import DocumentSuite
 
-What it does:
-
-- extracts readable text from PDF pages
-- infers heading levels from font size and emphasis
-- extracts DOCX paragraphs, headings, lists, and simple tables
-- extracts EPUB spine content in reading order
-- converts legacy DOC files through LibreOffice or Microsoft Word when available
-- merges wrapped lines into paragraphs
-- renders detected lists as Markdown lists
-- supports a single document file or an entire directory
-- includes both GUI and CLI modes
-
-What it does not do:
-
-- OCR scanned or image-only PDFs
-- preserve visual PDF layout exactly
-
-GUI:
-
-```bash
-python pdf_to_epub.py
+suite = DocumentSuite()
+result = suite.convert(
+    source=Path("report.docx"),
+    target_format="markdown",
+    output_dir=Path("output"),
+)
+print(result.output_files)
 ```
 
-CLI:
+Existing outputs are renamed by default (`report_1.md`, for example). Use the typed overwrite
+policy or CLI `--policy` option only when a different collision policy is intentional.
+
+## Engineering status
+
+The repository transformation began with an evidence-backed baseline rather than a wholesale
+rewrite:
+
+- [Initial transformation report](docs/planning/INITIAL_TRANSFORMATION_REPORT.md)
+- [Current-state audit](docs/architecture/CURRENT_STATE_AUDIT.md)
+- [Target architecture](docs/architecture/TARGET_ARCHITECTURE.md)
+- [Implementation roadmap](docs/planning/IMPLEMENTATION_ROADMAP.md)
+- [Feature gap analysis](docs/planning/FEATURE_GAP_ANALYSIS.md)
+- [Risk register](docs/planning/RISK_REGISTER.md)
+- [Security threat model](docs/security/THREAT_MODEL.md)
+- [Legacy command migration](docs/migration/LEGACY_COMMANDS.md)
+
+Proposed architectural decisions are recorded under
+[`docs/architecture/decisions`](docs/architecture/decisions/README.md). “Proposed” is deliberate:
+high-impact choices remain reviewable until implementation evidence supports acceptance.
+
+## Quality checks
 
 ```bash
-python pdf_to_epub.py --input "C:\path\book.pdf" --output-dir "C:\path\markdown"
-python pdf_to_epub.py --input "C:\path\library" --output-dir "C:\path\markdown"
+python -m ruff check src tests
+python -m mypy src/chwezi_docs
+python -m pytest --cov=chwezi_docs
+python -m build
+python -m twine check dist/*
 ```
 
-## Installation
+Legacy characterization scripts remain available during migration:
 
 ```bash
-git clone https://github.com/peterbamuhigire/pyPDFLibrarianSort.git
-cd pyPDFLibrarianSort
-pip install -r requirements.txt
-```
-
-The Markdown converter scripts also auto-install missing Python packages when run directly, so a user can usually start with `python pdf_to_epub.py` or `python pptx_to_epub.py` from a fresh checkout.
-
-Core dependencies for the Markdown converters:
-
-- `python-pptx`
-- `pdfplumber`
-- `pypdf`
-
-Legacy `.doc` conversion additionally requires either LibreOffice on `PATH` or Microsoft Word. The tool will auto-install `pywin32` when it needs Word automation.
-
-## Documentation
-
-- [Project Brief](PROJECT_BRIEF.md)
-- [Project Summary](docs/overview/PROJECT_SUMMARY.md)
-- [Quick Start](docs/guides/QUICK_START.md)
-- [Getting Started](docs/guides/GET_STARTED.md)
-- [Features Summary](docs/features/FEATURES_SUMMARY.md)
-- [PowerPoint To EPUB Guide](docs/guides/POWERPOINT_TO_EPUB_GUIDE.md)
-- [PDF To EPUB Guide](docs/guides/PDF_TO_EPUB_GUIDE.md)
-- [Web Interface Guide](docs/guides/WEB_INTERFACE_GUIDE.md)
-- [PDF Signature Guide](docs/guides/SIGNATURE_GUIDE.md)
-
-## Testing
-
-```bash
-python test_pptx_to_epub.py
 python test_pdf_to_epub.py
+python test_pptx_to_epub.py
 python test_signature.py
 ```
 
-## License
+## Security and privacy
 
-MIT License.
+Core processing is local. Remote AI organisation in legacy tools is optional and must not be
+treated as private local processing. Do not expose the legacy Flask application to untrusted
+networks; it has documented security gaps and is scheduled for replacement by a thin,
+localhost-only adapter over shared services.
+
+Report vulnerabilities using the process in [SECURITY.md](SECURITY.md).
+
+## Licensing status
+
+The historical README claimed MIT licensing, but no licence file exists in repository history.
+Distribution terms are therefore unresolved. A maintainer must select and add a licence before
+the project is published to PyPI or redistributed as an application. See
+[dependency governance](docs/reference/DEPENDENCIES.md) for third-party licensing concerns.

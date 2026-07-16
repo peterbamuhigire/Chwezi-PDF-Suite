@@ -2,7 +2,7 @@
 """
 Document to Markdown converter.
 
-Extracts readable text from `.pdf`, `.epub`, `.docx`, and `.doc` files and
+Extracts readable text from `.pdf`, `.epub`, `.docx`, `.doc`, and `.pptx` files and
 builds structured Markdown files that are easier for AI tools to ingest.
 Supports single-file and whole-directory processing with both CLI and tkinter
 GUI entry points.
@@ -26,21 +26,13 @@ from pathlib import Path
 from queue import Empty, Queue
 from xml.etree import ElementTree as ET
 
-from dependency_bootstrap import ensure_packages
-
-
-ensure_packages(
-    [
-        ("pdfplumber", "pdfplumber>=0.11.0"),
-        ("pypdf", "pypdf>=3.17.0"),
-    ]
-)
-
 import pdfplumber
+from pptx import Presentation
+from pptx.enum.shapes import MSO_SHAPE_TYPE, PP_PLACEHOLDER
 from pypdf import PdfReader
 
 
-SUPPORTED_EXTENSIONS = {".pdf", ".epub", ".docx", ".doc"}
+SUPPORTED_EXTENSIONS = {".pdf", ".epub", ".docx", ".doc", ".pptx"}
 LIST_RE = re.compile(r"^(?P<marker>(?:[-*\u2022o])|(?:\d+[.)]))\s+(?P<text>.+)$")
 ROMAN_RE = re.compile(r"^(?=[ivxlcdmIVXLCDM]+$)[IVXLCDMivxlcdm]{1,8}$")
 WORD_NS = {
@@ -76,6 +68,20 @@ class MarkdownBlock:
 class ConversionIssue:
     source: Path
     error: str
+
+
+@dataclass
+class SlideBlock:
+    kind: str
+    text: str = ""
+    level: int = 0
+    rows: list[list[str]] | None = None
+
+
+@dataclass
+class SlideContent:
+    title: str
+    blocks: list[SlideBlock]
 
 
 class HtmlToMarkdownParser(HTMLParser):
@@ -146,6 +152,195 @@ class HtmlToMarkdownParser(HTMLParser):
 
 def clean_text(value: str) -> str:
     return " ".join((value or "").replace("\u00a0", " ").split())
+
+
+def escape_markdown_cell(value: str) -> str:
+    return clean_text(value).replace("|", "\\|")
+
+
+def iter_powerpoint_text_shapes(shapes):
+    for shape in shapes:
+        if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+            yield from iter_powerpoint_text_shapes(shape.shapes)
+            continue
+        if getattr(shape, "has_table", False) or getattr(shape, "has_text_frame", False):
+            yield shape
+
+
+def powerpoint_placeholder_type(shape):
+    if not getattr(shape, "is_placeholder", False):
+        return None
+    try:
+        return shape.placeholder_format.type
+    except (AttributeError, ValueError):
+        return None
+
+
+def is_powerpoint_title(shape) -> bool:
+    return powerpoint_placeholder_type(shape) in {
+        PP_PLACEHOLDER.TITLE,
+        PP_PLACEHOLDER.CENTER_TITLE,
+    }
+
+
+def is_powerpoint_subtitle(shape) -> bool:
+    return powerpoint_placeholder_type(shape) == PP_PLACEHOLDER.SUBTITLE
+
+
+def powerpoint_paragraph_text(paragraph) -> str:
+    runs = "".join(run.text for run in paragraph.runs) if paragraph.runs else paragraph.text
+    return clean_text(runs)
+
+
+def powerpoint_font_sizes(shape) -> list[float]:
+    sizes: list[float] = []
+    if not getattr(shape, "has_text_frame", False):
+        return sizes
+    for paragraph in shape.text_frame.paragraphs:
+        for run in paragraph.runs:
+            size = getattr(getattr(run, "font", None), "size", None)
+            if size is not None:
+                sizes.append(float(size.pt))
+    return sizes
+
+
+def powerpoint_paragraph_is_bold(paragraph) -> bool:
+    bold_flags = [
+        bool(run.font.bold)
+        for run in paragraph.runs
+        if getattr(getattr(run, "font", None), "bold", None) is not None
+    ]
+    return bool(bold_flags) and all(bold_flags)
+
+
+def powerpoint_paragraph_is_heading(
+    text: str,
+    paragraph,
+    base_font_size: float | None,
+    shape,
+) -> bool:
+    if not text or len(text) > 80 or text.endswith((".", "!", "?", ";")):
+        return False
+    if getattr(paragraph, "level", 0):
+        return False
+    if is_powerpoint_subtitle(shape):
+        return True
+
+    sizes = [
+        float(run.font.size.pt)
+        for run in paragraph.runs
+        if getattr(getattr(run, "font", None), "size", None) is not None
+    ]
+    paragraph_size = max(sizes) if sizes else None
+    words = [word for word in text.split() if any(character.isalpha() for character in word)]
+    title_like = bool(words) and sum(word[:1].isupper() for word in words) >= max(
+        1, len(words) // 2
+    )
+    return bool(
+        (powerpoint_paragraph_is_bold(paragraph) and title_like)
+        or (
+            paragraph_size
+            and base_font_size
+            and paragraph_size >= base_font_size * 1.2
+            and title_like
+        )
+    )
+
+
+def extract_powerpoint_shape_blocks(shape, base_font_size: float | None) -> list[SlideBlock]:
+    blocks: list[SlideBlock] = []
+    if getattr(shape, "has_table", False):
+        rows = [
+            [escape_markdown_cell(cell.text) for cell in row.cells]
+            for row in shape.table.rows
+        ]
+        rows = [row for row in rows if any(row)]
+        return [SlideBlock(kind="table", rows=rows)] if rows else []
+
+    if not getattr(shape, "has_text_frame", False):
+        return blocks
+    for paragraph in shape.text_frame.paragraphs:
+        text = powerpoint_paragraph_text(paragraph)
+        if not text:
+            continue
+        level = max(0, int(getattr(paragraph, "level", 0) or 0))
+        if powerpoint_paragraph_is_heading(text, paragraph, base_font_size, shape):
+            blocks.append(SlideBlock(kind="heading", text=text, level=3))
+        elif level > 0:
+            blocks.append(SlideBlock(kind="list", text=text, level=level))
+        else:
+            blocks.append(SlideBlock(kind="paragraph", text=text))
+    return blocks
+
+
+def extract_slide_content(slide, slide_number: int) -> SlideContent:
+    title = ""
+    blocks: list[SlideBlock] = []
+    shapes = list(iter_powerpoint_text_shapes(slide.shapes))
+    font_sizes = [size for shape in shapes for size in powerpoint_font_sizes(shape)]
+    base_font_size = statistics.median(font_sizes) if font_sizes else None
+
+    for shape in shapes:
+        shape_blocks = extract_powerpoint_shape_blocks(shape, base_font_size)
+        if not shape_blocks:
+            continue
+        if is_powerpoint_title(shape) and not title:
+            title = shape_blocks[0].text
+            shape_blocks = shape_blocks[1:]
+        blocks.extend(shape_blocks)
+
+    return SlideContent(title=title or f"Slide {slide_number}", blocks=blocks)
+
+
+def powerpoint_title(presentation: Presentation, source_path: Path) -> str:
+    core_title = clean_text(getattr(presentation.core_properties, "title", "") or "")
+    if core_title:
+        return core_title
+    for index, slide in enumerate(presentation.slides, start=1):
+        extracted = extract_slide_content(slide, index)
+        if extracted.title and not extracted.title.startswith("Slide "):
+            return extracted.title
+    return source_path.stem.replace("_", " ").strip() or source_path.stem
+
+
+def render_powerpoint_table(rows: list[list[str]]) -> list[str]:
+    width = max(len(row) for row in rows)
+    padded_rows = [row + [""] * (width - len(row)) for row in rows]
+    lines = [
+        "| " + " | ".join(padded_rows[0]) + " |",
+        "| " + " | ".join(["---"] * width) + " |",
+    ]
+    lines.extend("| " + " | ".join(row) + " |" for row in padded_rows[1:])
+    return lines
+
+
+def render_slide_markdown(index: int, slide: SlideContent) -> list[str]:
+    lines = [f"## {index:02d}. {slide.title}", ""]
+    if not slide.blocks:
+        return [*lines, "_No extractable text on this slide._", ""]
+
+    paragraph_buffer: list[str] = []
+
+    def flush_paragraph() -> None:
+        if paragraph_buffer:
+            lines.extend([" ".join(paragraph_buffer), ""])
+            paragraph_buffer.clear()
+
+    for block in slide.blocks:
+        if block.kind == "paragraph":
+            paragraph_buffer.append(block.text)
+            continue
+        flush_paragraph()
+        if block.kind == "heading":
+            lines.extend([f"### {block.text}", ""])
+        elif block.kind == "list":
+            lines.append(f"{'  ' * max(0, block.level - 1)}- {block.text}")
+        elif block.kind == "table" and block.rows:
+            lines.extend([*render_powerpoint_table(block.rows), ""])
+    flush_paragraph()
+    if lines[-1] != "":
+        lines.append("")
+    return lines
 
 
 def metadata_title(reader: PdfReader) -> str:
@@ -384,7 +579,7 @@ def render_markdown(title: str, blocks: list[MarkdownBlock]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-class PdfToMarkdownConverter:
+class DocumentToMarkdownConverter:
     supported_extensions = SUPPORTED_EXTENSIONS
 
     def extract_blocks(self, pdf_path: Path) -> tuple[str, list[MarkdownBlock]]:
@@ -395,6 +590,15 @@ class PdfToMarkdownConverter:
         if title == "Untitled Document":
             title = fallback_title
         return title, blocks
+
+    def extract_powerpoint_slides(self, pptx_path: Path) -> tuple[str, list[SlideContent]]:
+        presentation = Presentation(str(pptx_path))
+        title = powerpoint_title(presentation, pptx_path)
+        slides = [
+            extract_slide_content(slide, index)
+            for index, slide in enumerate(presentation.slides, start=1)
+        ]
+        return title, slides
 
     def extract_docx_blocks(self, docx_path: Path) -> tuple[str, list[MarkdownBlock]]:
         paragraphs: list[MarkdownBlock] = []
@@ -527,7 +731,6 @@ class PdfToMarkdownConverter:
                 return converted
 
         try:
-            ensure_packages([("win32com.client", "pywin32")])
             import win32com.client  # type: ignore
         except ImportError as exc:
             raise RuntimeError(
@@ -563,8 +766,15 @@ class PdfToMarkdownConverter:
         raise ValueError(f"Unsupported file type: {source_path.suffix}")
 
     def build_markdown(self, source_path: Path, output_path: Path) -> Path:
-        title, blocks = self.extract_document_blocks(source_path)
-        markdown = render_markdown(title, blocks)
+        if source_path.suffix.lower() == ".pptx":
+            title, slides = self.extract_powerpoint_slides(source_path)
+            lines = [f"# {title}", ""]
+            for index, slide in enumerate(slides, start=1):
+                lines.extend(render_slide_markdown(index, slide))
+            markdown = "\n".join(lines).rstrip() + "\n"
+        else:
+            title, blocks = self.extract_document_blocks(source_path)
+            markdown = render_markdown(title, blocks)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(markdown, encoding="utf-8")
         return output_path
@@ -671,6 +881,9 @@ class PdfToMarkdownConverter:
         return results
 
 
+PdfToMarkdownConverter = DocumentToMarkdownConverter
+
+
 def launch_gui():
     import tkinter as tk
     from tkinter import filedialog, messagebox, scrolledtext, ttk
@@ -707,7 +920,7 @@ def launch_gui():
             )
             ttk.Label(
                 main,
-                text="Extract PDF, EPUB, DOCX, and DOC content into readable Markdown.",
+                text="Extract PDF, EPUB, Word, and PowerPoint content into readable Markdown.",
                 foreground="#555",
             ).grid(row=1, column=0, columnspan=3, sticky="w", **pad)
 
@@ -765,10 +978,11 @@ def launch_gui():
                 selected = filedialog.askopenfilename(
                     title="Select Document File",
                     filetypes=[
-                        ("Supported documents", "*.pdf *.epub *.docx *.doc"),
+                        ("Supported documents", "*.pdf *.epub *.docx *.doc *.pptx"),
                         ("PDF files", "*.pdf"),
                         ("EPUB files", "*.epub"),
                         ("Word files", "*.docx *.doc"),
+                        ("PowerPoint files", "*.pptx"),
                         ("All files", "*.*"),
                     ],
                 )
@@ -830,7 +1044,7 @@ def launch_gui():
             self.worker.start()
 
         def _run_worker(self, input_path: Path, output_dir: Path):
-            converter = PdfToMarkdownConverter()
+            converter = DocumentToMarkdownConverter()
 
             def progress_callback(current, total, source_path, output_path, info_message):
                 if info_message:
@@ -890,7 +1104,7 @@ def launch_gui():
 
 def build_arg_parser():
     parser = argparse.ArgumentParser(
-        description="Convert PDF, EPUB, DOCX, and DOC files into structured Markdown files."
+        description="Convert PDF, EPUB, Word, and PowerPoint files into structured Markdown files."
     )
     parser.add_argument("--gui", action="store_true", help="Launch the converter GUI.")
     parser.add_argument("--input", help="Path to a supported document file or a directory containing supported files.")
@@ -904,7 +1118,7 @@ def run_cli(args) -> int:
     if not args.output_dir:
         raise SystemExit("--output-dir is required in CLI mode")
 
-    converter = PdfToMarkdownConverter()
+    converter = DocumentToMarkdownConverter()
     input_path = Path(args.input).expanduser()
     output_dir = Path(args.output_dir).expanduser()
 

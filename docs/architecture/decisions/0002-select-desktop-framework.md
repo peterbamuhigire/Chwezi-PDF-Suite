@@ -6,7 +6,7 @@ Owner: project maintainer
 
 ## Context
 
-The repository currently uses Tkinter, CustomTkinter and Textual interfaces. The target needs page previews, drag/drop, model/view lists, accessible controls, background jobs and Windows/macOS/Linux packaging.
+The repository currently uses Tkinter and CustomTkinter interfaces. The target needs page previews, drag/drop, model/view lists, accessible controls, background jobs and Windows/macOS/Linux packaging.
 
 ## Options
 
@@ -28,4 +28,3 @@ Propose PySide6. Qt provides the required desktop interaction model and mature w
 ## Revisit trigger
 
 Reject or revise if a proof-of-concept cannot meet bundle-size, accessibility, licence or macOS signing requirements.
-

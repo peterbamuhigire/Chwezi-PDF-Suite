@@ -34,7 +34,6 @@ Core remains small. A dependency enters core only if it is required for imports,
 | Flask/flask-cors | current web prototype | BSD-3-Clause/MIT | remove when FastAPI adapter replaces prototype |
 | watchdog | watch events | Apache-2.0 | watch extra |
 | CustomTkinter | current launcher | CC0-1.0 | retire after PySide6 migration |
-| Textual | unrelated Git puller | MIT | remove from product extras if tool is separated |
 | cloud SDKs | optional remote classification | MIT/Apache-2.0 | AI extra only; disabled by default |
 
 Version strings above are not pins. A lock file and compatibility CI must establish the release set.

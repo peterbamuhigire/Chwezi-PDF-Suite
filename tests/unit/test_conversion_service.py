@@ -1,4 +1,5 @@
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -77,3 +78,33 @@ def test_failed_conversion_leaves_no_final_placeholder(
 
     assert not (output_dir / "input.md").exists()
     assert not list(output_dir.glob(".chwezi-*"))
+
+
+def test_transitional_backend_uses_unified_document_converter(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "deck.pptx"
+    output_dir = tmp_path / "output"
+    expected = output_dir / "deck.md"
+    imported: list[str] = []
+
+    class FakeConverter:
+        def convert(self, input_path: Path, destination: Path) -> list[Path]:
+            assert input_path == source
+            assert destination == output_dir
+            return [expected]
+
+    def fake_import(module_name: str) -> SimpleNamespace:
+        imported.append(module_name)
+        return SimpleNamespace(DocumentToMarkdownConverter=FakeConverter)
+
+    monkeypatch.setattr(
+        "chwezi_docs.application.conversion_service.importlib.import_module",
+        fake_import,
+    )
+
+    outputs = ConversionService._run_transitional_backend(source, output_dir)
+
+    assert imported == ["documents_to_markdown"]
+    assert outputs == [expected]

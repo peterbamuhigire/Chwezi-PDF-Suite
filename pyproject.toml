@@ -92,18 +92,15 @@ include = [
   "/docs",
   "/README.md",
   "/pyproject.toml",
-  "/dependency_bootstrap.py",
-  "/pdf_to_epub.py",
-  "/pptx_to_epub.py",
+  "/documents_to_markdown.py",
+  "/window_geometry.py",
 ]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/chwezi_docs"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"dependency_bootstrap.py" = "dependency_bootstrap.py"
-"pdf_to_epub.py" = "pdf_to_epub.py"
-"pptx_to_epub.py" = "pptx_to_epub.py"
+"documents_to_markdown.py" = "documents_to_markdown.py"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

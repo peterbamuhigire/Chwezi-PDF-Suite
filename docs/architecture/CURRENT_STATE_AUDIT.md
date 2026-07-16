@@ -13,7 +13,7 @@ The main release blockers are concrete:
 
 - there is no `pyproject.toml`, package namespace, licence file, CI workflow or collected pytest suite;
 - four entry paths can install Python packages while running;
-- `pdf_to_epub.py` and `pptx_to_epub.py` emit Markdown despite their names;
+- `documents_to_markdown.py` now consolidates PDF, EPUB, Word, and PowerPoint extraction;
 - web mode runs Flask debug mode on `0.0.0.0`, returns API keys to the browser and stores them in a signed client-side session cookie;
 - the web client interpolates AI and file-derived values into `innerHTML`, creating a reachable cross-site scripting path;
 - AI-proposed categories and filenames reach `shutil.move()` without containment or filename validation;
@@ -29,9 +29,8 @@ Commands included:
 ```text
 rg --files -uu -g '!**/.git/**'
 python -m compileall -q -f .
-python -m pytest -q test_pdf_to_epub.py test_pptx_to_epub.py test_signature.py
-python test_pdf_to_epub.py
-python test_pptx_to_epub.py
+python -m pytest -q test_signature.py
+python test_documents_to_markdown.py
 python test_signature.py
 git log --oneline --stat -12
 ```
@@ -44,8 +43,7 @@ The standalone converter and signature scripts pass: PDF/DOCX/EPUB-to-Markdown 2
 |---|---|---|
 | `organize_batch.py` | AI categorisation, keyword fallback, file moves, Tk GUI and CLI | Working prototype; 825-line mixed-responsibility module |
 | `pdf_content_analyzer.py` | PDF metadata/text previews and filename heuristics | Useful; parser errors are reduced to strings |
-| `pdf_to_epub.py` | PDF, EPUB, DOCX and DOC to Markdown | Working but misnamed; overwrites output and auto-installs dependencies |
-| `pptx_to_epub.py` | PPTX to slide-preserving Markdown | Working but misnamed; overwrites output and auto-installs dependencies |
+| `documents_to_markdown.py` | PDF, EPUB, DOCX, DOC and PPTX to Markdown | Unified transitional GUI/CLI; batch failures can leave an empty output |
 | `pdf_signature.py` | Visual image stamping, filters, batch mode, Tk UI | Valuable; not cryptographic signing; dictionary results and broad exception handling |
 | `sign_setup.py` | Interactive signature launcher | Duplicates validation and attempts runtime installation |
 | `watch_organizer.py` | Debounced watch-folder AI organisation | Partial; no durable queue, retries, recovery or safe shutdown of timers |
@@ -55,7 +53,6 @@ The standalone converter and signature scripts pass: PDF/DOCX/EPUB-to-Markdown 2
 | `static/js/app.js` | UI state and API calls | Duplicates workflow logic and contains unsafe `innerHTML` rendering |
 | `static/css/style.css` | Responsive styling | Has one breakpoint; removes focus outlines; no dark/high-contrast theme |
 | `index-app.py` | CustomTkinter launcher | Product launcher, not a unified desktop app; contains `shell=True` path |
-| `git_puller.py` | Textual UI for updating unrelated Git repositories | Out of product scope; should move to another project or optional developer tool |
 | `dependency_bootstrap.py` | Installs missing packages at import time | Must be retired from runtime use |
 | `setup.py` | Interactive installer/configuration wizard | Misleading name; not packaging metadata; stores settings under a legacy name |
 | `diagnose.py` | Ad-hoc environment checks | Useful intent; imports application code and lacks a stable machine-readable contract |
@@ -84,7 +81,7 @@ The standalone converter and signature scripts pass: PDF/DOCX/EPUB-to-Markdown 2
 | local rule organisation | Partial | Small hard-coded filename keyword map only |
 | watch folder | Partial | Debounce and two-point size check; no persistence, duplicate detection or retry policy |
 | web UI | Partial, unsafe | Upload, organise, browse and sign; no job model or file isolation |
-| desktop UI | Duplicated prototypes | Tk, CustomTkinter and Textual surfaces; no common navigation or service layer |
+| desktop UI | Duplicated prototypes | Tk and CustomTkinter surfaces; no common navigation or service layer |
 | CLI | Inconsistent | Per-script argparse contracts; no `chwezi` command or JSON result standard |
 | Python API | Absent | Public behaviour is exposed through script classes and dictionaries |
 | job history | Absent | JSON operation logs contain full paths but no durable job state |
@@ -104,7 +101,6 @@ The standalone converter and signature scripts pass: PDF/DOCX/EPUB-to-Markdown 2
 - `pending_pdfs` and `signature_uploads` in `web_interface.py` are unused.
 - `_get_processed_signature_bytes()` has no observed caller.
 - `test_basic.py` is interactive despite its test name.
-- `git_puller.py` and its 1,500-line historical plan are unrelated to the product mission.
 - documentation still refers to absent `.bat` files and claims the web interface is local-only while it binds all interfaces.
 
 ### Security and privacy
@@ -127,7 +123,7 @@ No committed credential pattern was found in the reviewed source. This was a sta
 ### Data-loss and temporary-file risks
 
 - Conversion outputs are overwritten without warning.
-- `pdf_to_epub.py` touches the final output before conversion; failure can leave an empty file.
+- `documents_to_markdown.py` touches the final output before conversion; failure can leave an empty file.
 - Organisation moves inputs directly, with no transaction, undo manifest, rollback or fsync boundary.
 - Batch signing can recurse into its own output directory on later runs.
 - Web uploads collide on sanitised filenames and persist indefinitely in a shared home-directory folder.
@@ -171,4 +167,3 @@ No committed credential pattern was found in the reviewed source. This was a sta
 - No macOS/Linux execution environment was available in this cycle.
 - Public GitHub reported no open issues or pull requests; there was no external defect backlog to reconcile.
 - Dependency vulnerability and licence conclusions require a locked dependency set before release.
-

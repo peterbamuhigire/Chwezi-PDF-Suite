@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-PDF Librarian Suite — Central Launcher
-"""
+"""Chwezi Document Suite central launcher."""
 
 import subprocess
 import sys
@@ -12,6 +10,8 @@ import time
 from pathlib import Path
 
 import customtkinter as ctk
+
+from window_geometry import centered_geometry
 
 HERE = Path(__file__).parent
 
@@ -48,30 +48,13 @@ TOOLS = [
         "terminal":    True,
     },
     {
-        "id":          "pptx",
-        "title":       "PowerPoint to Markdown",
-        "description": "Convert PPTX presentations into\nstructured Markdown files",
-        "icon":        "📊",
-        "script":      "pptx_to_epub.py",
+        "id":          "documents_markdown",
+        "title":       "Documents to Markdown",
+        "description": "Convert PDF, Word, EPUB, and PPTX\ninto structured Markdown files",
+        "icon":        "📘",
+        "script":      "documents_to_markdown.py",
         "args":        ["--gui"],
         "terminal":    False,
-    },
-    {
-        "id":          "pdf_epub",
-        "title":       "PDF to Markdown",
-        "description": "Convert text-based PDFs into\nstructured Markdown files",
-        "icon":        "ðŸ“",
-        "script":      "pdf_to_epub.py",
-        "args":        ["--gui"],
-        "terminal":    False,
-    },
-    {
-        "id":          "git_puller",
-        "title":       "Git Puller",
-        "description": "Scan all drives for git repos\nand pull any or all of them",
-        "icon":        "🔄",
-        "script":      "git_puller.py",
-        "terminal":    True,
     },
 ]
 
@@ -232,11 +215,13 @@ class ToolCard(ctk.CTkFrame):
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("PDF Librarian Suite")
+        self.withdraw()
+        self.title("Chwezi Document Suite")
         self.resizable(False, False)
         self._build()
         self.update_idletasks()
         self._center()
+        self.deiconify()
 
     def _build(self):
         self.configure(fg_color=BG_MAIN)
@@ -247,7 +232,7 @@ class App(ctk.CTk):
 
         ctk.CTkLabel(
             header,
-            text="PDF Librarian Suite",
+            text="Chwezi Document Suite",
             font=ctk.CTkFont(size=26, weight="bold"),
             text_color=TEXT_PRI,
         ).pack(side="left")
@@ -283,15 +268,17 @@ class App(ctk.CTk):
         # ── Footer ────────────────────────────────────────────────────────────
         ctk.CTkLabel(
             self,
-            text="pyPDFLibrarianSort  •  All tools run locally",
+            text="Chwezi Document Suite  •  All tools run locally",
             font=ctk.CTkFont(size=10),
             text_color=GRAY,
         ).pack(pady=(0, 16))
 
     def _center(self):
-        w, h = self.winfo_width(), self.winfo_height()
-        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
-        self.geometry(f"+{(sw - w) // 2}+{(sh - h) // 2}")
+        width = max(self.winfo_reqwidth(), self.winfo_width())
+        height = max(self.winfo_reqheight(), self.winfo_height())
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        self.geometry(centered_geometry(width, height, screen_width, screen_height))
 
     def _toggle_theme(self):
         current = ctk.get_appearance_mode()

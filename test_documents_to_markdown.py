@@ -1,7 +1,7 @@
 """
-Smoke tests for the PDF to Markdown converter.
+Smoke tests for the unified document-to-Markdown converter.
 
-Run with: python test_pdf_to_epub.py
+Run with: python test_documents_to_markdown.py
 """
 
 import sys
@@ -11,8 +11,9 @@ from pathlib import Path
 
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+from pptx import Presentation
 
-from pdf_to_epub import PdfToMarkdownConverter
+from documents_to_markdown import DocumentToMarkdownConverter
 
 
 def create_sample_pdf(target: Path) -> Path:
@@ -84,6 +85,32 @@ def create_sample_epub(target: Path) -> Path:
     return target
 
 
+def create_sample_pptx(target: Path) -> Path:
+    presentation = Presentation()
+
+    slide = presentation.slides.add_slide(presentation.slide_layouts[1])
+    slide.shapes.title.text = "Introduction"
+    body = slide.placeholders[1].text_frame
+    body.text = "Overview paragraph"
+    bullet = body.add_paragraph()
+    bullet.text = "First bullet"
+    bullet.level = 1
+
+    second_slide = presentation.slides.add_slide(presentation.slide_layouts[5])
+    textbox = second_slide.shapes.add_textbox(
+        left=1000000,
+        top=1200000,
+        width=6000000,
+        height=3000000,
+    )
+    frame = textbox.text_frame
+    frame.text = "Body-only slide"
+    frame.add_paragraph().text = "Follow-up point"
+
+    presentation.save(target)
+    return target
+
+
 def assert_contains(text: str, expected: str):
     if expected not in text:
         raise AssertionError(f"Expected to find {expected!r}")
@@ -95,7 +122,7 @@ def test_single_file_conversion():
         pdf_path = create_sample_pdf(temp_path / "book.pdf")
         output_dir = temp_path / "out"
 
-        converter = PdfToMarkdownConverter()
+        converter = DocumentToMarkdownConverter()
         results = converter.convert(pdf_path, output_dir)
 
         if len(results) != 1:
@@ -122,7 +149,7 @@ def test_mixed_directory_conversion():
         create_sample_epub(input_dir / "reader.epub")
         output_dir = temp_path / "out"
 
-        converter = PdfToMarkdownConverter()
+        converter = DocumentToMarkdownConverter()
         results = converter.convert(input_dir, output_dir)
 
         if len(results) != 3:
@@ -143,10 +170,45 @@ def test_mixed_directory_conversion():
         assert_contains(combined, "EPUB list item")
 
 
+def test_powerpoint_conversion():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        pptx_path = create_sample_pptx(temp_path / "deck.pptx")
+        output_dir = temp_path / "out"
+
+        converter = DocumentToMarkdownConverter()
+        results = converter.convert(pptx_path, output_dir)
+
+        if len(results) != 1:
+            raise AssertionError(f"Expected 1 Markdown file, got {len(results)}")
+
+        content = results[0].read_text(encoding="utf-8")
+        assert_contains(content, "# Introduction")
+        assert_contains(content, "## 01. Introduction")
+        assert_contains(content, "Overview paragraph")
+        assert_contains(content, "- First bullet")
+
+
+def test_mixed_directory_includes_powerpoint():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        input_dir = temp_path / "input"
+        input_dir.mkdir()
+        create_sample_docx(input_dir / "brief.docx")
+        create_sample_pptx(input_dir / "brief.pptx")
+
+        results = DocumentToMarkdownConverter().convert(input_dir, temp_path / "out")
+        output_names = {path.name for path in results}
+        if output_names != {"brief.md", "brief_pptx.md"}:
+            raise AssertionError(f"Unexpected output names: {sorted(output_names)}")
+
+
 def main():
     tests = [
         ("Single File Conversion", test_single_file_conversion),
         ("Mixed Directory Conversion", test_mixed_directory_conversion),
+        ("PowerPoint Conversion", test_powerpoint_conversion),
+        ("Mixed Directory Includes PowerPoint", test_mixed_directory_includes_powerpoint),
     ]
     failures = 0
 

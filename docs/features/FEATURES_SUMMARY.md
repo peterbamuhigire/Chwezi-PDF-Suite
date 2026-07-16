@@ -1,56 +1,24 @@
 # Features Summary
 
-## Project-Level Features
+## Document conversion and extraction
 
-The repository now targets a broader role: a Python tools workspace for practical document and content-processing tasks.
+- one GUI/CLI for PDF, EPUB, DOCX, DOC, and PPTX to Markdown
+- single-file and recursive mixed-directory input
+- relative output-directory preservation
+- collision-safe names for sources that share a stem
+- slide boundaries, bullets, and simple PowerPoint tables
+- packaged capability reporting and staged single-file output
 
-Project-wide characteristics:
+## PDF management
 
-- standalone scripts with focused responsibilities
-- GUI-first workflows where helpful
-- CLI support for automation
-- batch processing support
-- local file processing
+- AI-assisted categorisation and batch organisation
+- watched-folder automation
+- visual signature placement with page, size, opacity, and rotation controls
 
-## Featured New Tool
+## Current limits
 
-### PowerPoint To EPUB
+Markdown conversion is lossy. It does not yet preserve source-page appearance, embedded media, charts, speaker notes, comments, tracked changes, or scanned text without OCR. The organiser's remote AI mode is not local processing, and the prototype web interface is not approved for exposure to untrusted networks.
 
-`pptx_to_epub.py` currently leads the non-PDF expansion.
+## Planned growth
 
-Features:
-
-- converts `.pptx` to `.epub`
-- extracts slide text only
-- ignores images
-- creates structured EPUB sections slide by slide
-- supports one file or an entire directory
-- lets the user pick the output directory
-- available as both GUI and CLI
-
-## Existing PDF Features
-
-The repository still includes earlier PDF utilities:
-
-### PDF Organization
-
-- AI-assisted categorization
-- batch processing
-- folder organization
-- optional watch mode
-
-### PDF Signing
-
-- signature placement controls
-- page selection rules
-- opacity, size, and rotation controls
-- batch signing support
-
-## Directional Feature Goals
-
-Planned growth areas for the repository:
-
-- more file conversion tools
-- more extraction pipelines
-- more GUI wrappers around practical scripts
-- more reusable batch-processing patterns
+The roadmap focuses on document formats, OCR, metadata inspection, PDF operations, reversible workflows, and one shared desktop shell. Non-document utilities are outside this repository's product boundary.

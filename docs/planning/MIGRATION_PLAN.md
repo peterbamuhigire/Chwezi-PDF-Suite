@@ -39,8 +39,7 @@ Use a strangler migration: establish typed package seams, route new interfaces t
 
 | Legacy entrypoint | New command | Initial status | Removal condition |
 |---|---|---|---|
-| `pdf_to_epub.py` | `chwezi convert FILE --to markdown` | deprecated wrapper after parity | two releases after parity |
-| `pptx_to_epub.py` | `chwezi convert DECK.pptx --to markdown` | deprecated wrapper after parity | two releases after parity |
+| `documents_to_markdown.py` | `chwezi convert FILE --to markdown` | unified transitional GUI/CLI | after desktop and batch parity |
 | `organize_batch.py` | `chwezi organise PATH` | preserved until safe mover/classifier migration | P1 parity |
 | `pdf_signature.py` | `chwezi sign FILE --signature IMAGE` | preserved; label as visual | P1 parity |
 | `watch_organizer.py` | `chwezi watch PATH --workflow NAME` | preserved until durable job recovery | P1 parity |
@@ -59,4 +58,3 @@ Foundation changes are additive. A release can revert package entrypoints while 
 - documentation names unsupported and partially supported cases;
 - rollback/cleanup path is tested;
 - a deprecation warning points to an implemented command, not a future placeholder.
-

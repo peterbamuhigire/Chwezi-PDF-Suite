@@ -7,7 +7,6 @@ import os
 import tempfile
 from pathlib import Path
 from time import perf_counter
-from typing import Any
 
 from chwezi_docs.conversion.planner import ConversionPlanner
 from chwezi_docs.domain.errors import ConversionFailedError, InvalidDocumentError
@@ -105,12 +104,8 @@ class ConversionService:
     @staticmethod
     def _run_transitional_backend(source: Path, output_dir: Path) -> list[Path]:
         try:
-            if source.suffix.lower() == ".pptx":
-                module: Any = importlib.import_module("pptx_to_epub")
-                converter = module.PowerPointToMarkdownConverter()
-            else:
-                module = importlib.import_module("pdf_to_epub")
-                converter = module.PdfToMarkdownConverter()
+            module = importlib.import_module("documents_to_markdown")
+            converter = module.DocumentToMarkdownConverter()
             return [Path(path) for path in converter.convert(source, output_dir)]
         except Exception as exc:
             raise ConversionFailedError(

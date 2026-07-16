@@ -6,13 +6,13 @@ This report is the entry point for the Phase 0 assessment. It maps the requested
 
 Chwezi-PDF-Suite is currently a set of capable prototypes. Its distinctive material is structured Markdown extraction, visual signature placement and reviewed AI-assisted organisation. It is prevented from being a professional suite by unsafe path/output handling, misleading naming, runtime installation, duplicated interfaces, absent packaging/tests/CI and an insecure web prototype.
 
-Preserve the conversion heuristics, visual placement semantics, dry-run organisation and review-before-move workflow. Refactor them behind typed application services. Retire or separate the unrelated Git puller, runtime bootstrap and obsolete publishing/setup guidance after migration paths exist.
+Preserve the conversion heuristics, visual placement semantics, dry-run organisation and review-before-move workflow. Refactor them behind typed application services, then retire runtime bootstrap and obsolete publishing/setup guidance after migration paths exist.
 
 Evidence: [Current State Audit](../architecture/CURRENT_STATE_AUDIT.md).
 
 ## B. Repository map
 
-The significant-file map and responsibilities are in the audit's “Repository map”. The repository contains 23 Python files, with product logic concentrated in five large scripts: `organize_batch.py` (825 lines), `pdf_signature.py` (971), `pdf_to_epub.py` (935), `pptx_to_epub.py` (569) and `web_interface.py` (558).
+The significant-file map and responsibilities are in the audit's “Repository map”. Conversion logic that originally occupied two misleading scripts has since been consolidated in `documents_to_markdown.py`; organisation, signature placement, and the local web prototype remain separate migration targets.
 
 ## C. Current feature matrix
 
@@ -48,6 +48,5 @@ The first sprint is deliberately narrow: packaging, typed domain contracts, capa
 
 1. Choose the project licence before public package distribution.
 2. Accept or revise the proposed desktop/PDF library ADRs.
-3. Decide whether `git_puller.py`, embedded skills and the personal category template remain in this product repository.
+3. Decide whether embedded skills and the personal category template remain in this product repository.
 4. Approve a public/synthetic conversion corpus and performance targets.
-

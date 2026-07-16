@@ -2,8 +2,7 @@
 
 | Legacy script | New command | Compatibility status | Planned removal |
 |---|---|---|---|
-| `pdf_to_epub.py` | `chwezi convert FILE --to markdown` | retained; name is misleading | after two parity releases |
-| `pptx_to_epub.py` | `chwezi convert DECK.pptx --to markdown` | retained; name is misleading | after two parity releases |
+| `documents_to_markdown.py` | `chwezi convert FILE --to markdown` | unified transitional GUI/CLI | after desktop and batch parity |
 | `organize_batch.py` | `chwezi organise PATH` | retained; migration not implemented | after P1 parity |
 | `pdf_signature.py` | `chwezi sign FILE --signature IMAGE` | retained; visual placement only | after P1 parity |
 | `sign_setup.py` | `chwezi sign` or desktop Sign tool | retained during transition | after P1 parity |
@@ -15,4 +14,3 @@
 | `diagnose.py` | `chwezi diagnostics` | retained utility | after diagnostic parity |
 
 Removal dates are milestone-based because no release cadence has been approved. Deprecation warnings will begin only when the replacement command is implemented.
-

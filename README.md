@@ -87,8 +87,7 @@ python -m twine check dist/*
 Legacy characterization scripts remain available during migration:
 
 ```bash
-python test_pdf_to_epub.py
-python test_pptx_to_epub.py
+python test_documents_to_markdown.py
 python test_signature.py
 ```
 

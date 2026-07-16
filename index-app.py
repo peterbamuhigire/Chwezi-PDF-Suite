@@ -221,7 +221,7 @@ class App(ctk.CTk):
         self._build()
         self.update_idletasks()
         self._center()
-        self.deiconify()
+        self.after_idle(self._show)
 
     def _build(self):
         self.configure(fg_color=BG_MAIN)
@@ -279,6 +279,14 @@ class App(ctk.CTk):
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
         self.geometry(centered_geometry(width, height, screen_width, screen_height))
+
+    def _show(self):
+        """Map the launcher after Tk's event loop starts and raise it once."""
+        self.deiconify()
+        self.lift()
+        self.attributes("-topmost", True)
+        self.focus_force()
+        self.after(250, lambda: self.attributes("-topmost", False))
 
     def _toggle_theme(self):
         current = ctk.get_appearance_mode()

@@ -33,6 +33,37 @@ the missing capability and an explicit installation command.
 
 ## Quick start
 
+### Desktop launcher
+
+From the repository root, open the document-tool launcher with:
+
+```bash
+python index-app.py
+```
+
+The launcher opens centered and provides Documents to Markdown, PDF Organizer, and PDF Signer.
+The startup sequence raises the window once so it does not remain hidden behind another Windows
+application.
+
+To open the unified converter without the launcher:
+
+```bash
+python documents_to_markdown.py --gui
+```
+
+If `index-app.py` exits immediately, verify the desktop dependency and reinstall it if needed:
+
+```bash
+python -c "import customtkinter; print(customtkinter.__version__)"
+python -m pip install "customtkinter>=5.2.0"
+```
+
+If the command remains running but no window is visible, use `Alt+Tab` once and confirm that no
+older launcher process is still running in Task Manager. The current launcher maps its window only
+after the Tk event loop starts, which avoids the previous invisible-start condition.
+
+### Command line
+
 ```bash
 chwezi version
 chwezi capabilities

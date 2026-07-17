@@ -45,7 +45,7 @@ ai = [
 ]
 suite = [
   "anthropic>=0.40,<1",
-  "customtkinter>=5.2,<6",
+  "customtkinter>=5.2,<7",
   "flask>=3,<4",
   "flask-cors>=4,<7",
   "google-genai>=1,<3",

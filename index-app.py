@@ -15,6 +15,7 @@ from tkinter import messagebox
 
 import customtkinter as ctk
 
+from ui_icons import IconStore
 from ui_theme import BODY_FONT, DISPLAY_FONT, colour, load_theme, save_theme
 from window_geometry import centered_geometry
 
@@ -27,6 +28,7 @@ TOOLS = [
     {
         "id": "organizer",
         "code": "ORG",
+        "icon": "app-pdf-organizer",
         "eyebrow": "LIBRARY WORKFLOW",
         "title": "PDF Organizer",
         "description": (
@@ -40,6 +42,7 @@ TOOLS = [
     {
         "id": "signer",
         "code": "SIGN",
+        "icon": "app-pdf-signer",
         "eyebrow": "PDF FINISHING",
         "title": "PDF Signer",
         "description": (
@@ -52,6 +55,7 @@ TOOLS = [
     {
         "id": "converter",
         "code": "MD",
+        "icon": "app-documents-to-markdown",
         "eyebrow": "CONTENT EXTRACTION",
         "title": "Documents to Markdown",
         "description": "Turn PDF, Word, EPUB, and PowerPoint files into structured Markdown.",
@@ -86,7 +90,7 @@ def command_for(tool: dict[str, object]) -> list[str]:
 class ToolCard(ctk.CTkFrame):
     """A themed suite card with process-aware launch state."""
 
-    def __init__(self, master, tool: dict[str, object], **kwargs):
+    def __init__(self, master, tool: dict[str, object], icons: IconStore, **kwargs):
         super().__init__(
             master,
             corner_radius=18,
@@ -96,6 +100,7 @@ class ToolCard(ctk.CTkFrame):
             **kwargs,
         )
         self.tool = tool
+        self.icons = icons
         self.process: subprocess.Popen | None = None
         self._build()
         self._update_status(False)
@@ -108,9 +113,11 @@ class ToolCard(ctk.CTkFrame):
         top.grid(row=0, column=0, sticky="ew", padx=20, pady=(20, 0))
         top.grid_columnconfigure(1, weight=1)
 
+        tool_icon = self.icons.ctk("apps", str(self.tool["icon"]), 34)
         ctk.CTkLabel(
             top,
-            text=str(self.tool["code"]),
+            text="" if tool_icon else str(self.tool["code"]),
+            image=tool_icon,
             width=52,
             height=36,
             corner_radius=10,
@@ -159,6 +166,8 @@ class ToolCard(ctk.CTkFrame):
         self.launch_btn = ctk.CTkButton(
             footer,
             text="Open tool",
+            image=self.icons.ctk("navigation", "arrow-right", 15),
+            compound="right",
             width=104,
             height=38,
             corner_radius=10,
@@ -174,6 +183,8 @@ class ToolCard(ctk.CTkFrame):
         if running:
             self.status_badge.configure(
                 text="  RUNNING  ",
+                image=self.icons.ctk("status", "circle-play", 13),
+                compound="left",
                 text_color=colour("success"),
                 fg_color=colour("success_soft"),
             )
@@ -181,6 +192,8 @@ class ToolCard(ctk.CTkFrame):
         else:
             self.status_badge.configure(
                 text="  READY  ",
+                image=self.icons.ctk("status", "circle-check", 13),
+                compound="left",
                 text_color=colour("text_muted"),
                 fg_color=colour("surface_sunken"),
             )
@@ -211,11 +224,7 @@ class ToolCard(ctk.CTkFrame):
                 command,
                 cwd=str(installed_directory()),
                 shell=False,
-                creationflags=(
-                    subprocess.CREATE_NO_WINDOW
-                    if sys.platform == "win32"
-                    else 0
-                ),
+                creationflags=(subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0),
             )
         except OSError as exc:
             messagebox.showerror(
@@ -253,6 +262,8 @@ class ToolCard(ctk.CTkFrame):
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
+        self.icons = IconStore()
+        self.icons.apply_window_icon(self, "app-chwezi-document-suite")
         self.withdraw()
         self.title("Chwezi Document Suite")
         self.resizable(False, False)
@@ -277,6 +288,11 @@ class App(ctk.CTk):
 
         title_row = ctk.CTkFrame(header, fg_color="transparent")
         title_row.pack(fill="x", pady=(7, 0))
+        ctk.CTkLabel(
+            title_row,
+            text="",
+            image=self.icons.ctk("apps", "app-chwezi-document-suite", 38),
+        ).pack(side="left", padx=(0, 12))
         ctk.CTkLabel(
             title_row,
             text="Chwezi Document Suite",
@@ -314,7 +330,7 @@ class App(ctk.CTk):
         cards.pack(fill="x")
         for column, tool in enumerate(TOOLS):
             cards.grid_columnconfigure(column, weight=1, uniform="tools")
-            ToolCard(cards, tool, width=245, height=300).grid(
+            ToolCard(cards, tool, icons=self.icons, width=245, height=300).grid(
                 row=0,
                 column=column,
                 padx=(0 if column == 0 else 8, 0 if column == 2 else 8),
@@ -357,7 +373,12 @@ class App(ctk.CTk):
 
     def _sync_theme_button(self) -> None:
         mode = ctk.get_appearance_mode().casefold()
-        self.theme_btn.configure(text="Light mode" if mode == "dark" else "Dark mode")
+        icon_name = "sun" if mode == "dark" else "moon"
+        self.theme_btn.configure(
+            text="Light mode" if mode == "dark" else "Dark mode",
+            image=self.icons.ctk("navigation", icon_name, 15),
+            compound="left",
+        )
 
     def _toggle_theme(self) -> None:
         next_mode = "light" if ctk.get_appearance_mode() == "Dark" else "dark"

@@ -11,23 +11,27 @@
             document.documentElement.dataset.theme = saved || preferred;
         })();
     </script>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icons/apps/app-pdf-organizer.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <div class="container">
         <header class="header">
-            <div class="header-copy">
-                <span class="eyebrow">LOCAL LIBRARY WORKFLOW</span>
-                <h1>PDF Organizer</h1>
-                <p class="tagline">Review, categorize, and organize a document collection from one calm workspace.</p>
+            <div class="header-identity">
+                <span class="ui-icon app-mark icon-app-organizer" aria-hidden="true"></span>
+                <div class="header-copy">
+                    <span class="eyebrow">LOCAL LIBRARY WORKFLOW</span>
+                    <h1>PDF Organizer</h1>
+                    <p class="tagline">Review, categorize, and organize a document collection from one calm workspace.</p>
+                </div>
             </div>
             <div class="header-actions">
-                <button class="btn btn-secondary" onclick="showUpload()">Organize</button>
-                <button class="btn btn-secondary" onclick="showBrowser()">Library</button>
-                <button class="btn btn-secondary" onclick="showStats()">Statistics</button>
-                <button class="btn btn-secondary" onclick="showSignature()">Sign PDFs</button>
-                <button class="btn btn-secondary" onclick="showSettings()">Settings</button>
-                <button id="themeToggle" class="btn btn-theme" type="button" onclick="toggleTheme()" aria-label="Switch colour theme">Theme</button>
+                <button class="btn btn-secondary" onclick="showUpload()"><span class="ui-icon icon-files" aria-hidden="true"></span>Organize</button>
+                <button class="btn btn-secondary" onclick="showBrowser()"><span class="ui-icon icon-library" aria-hidden="true"></span>Library</button>
+                <button class="btn btn-secondary" onclick="showStats()"><span class="ui-icon icon-chart-column" aria-hidden="true"></span>Statistics</button>
+                <button class="btn btn-secondary" onclick="showSignature()"><span class="ui-icon icon-file-signature" aria-hidden="true"></span>Sign PDFs</button>
+                <button class="btn btn-secondary" onclick="showSettings()"><span class="ui-icon icon-settings" aria-hidden="true"></span>Settings</button>
+                <button id="themeToggle" class="btn btn-theme" type="button" onclick="toggleTheme()" aria-label="Switch colour theme"><span class="ui-icon icon-moon" aria-hidden="true"></span>Theme</button>
             </div>
         </header>
 
@@ -36,12 +40,12 @@
             <!-- Upload Section -->
             <section id="uploadSection" class="section">
                 <div class="upload-area" id="dropZone">
-                    <div class="upload-icon" aria-hidden="true">PDF</div>
+                    <span class="ui-icon upload-icon icon-file-up" aria-hidden="true"></span>
                     <h2>Bring in the PDFs you want to organize</h2>
                     <p>Drop files here, or choose them from this computer.</p>
                     <input type="file" id="fileInput" multiple accept=".pdf" hidden>
                     <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
-                        Choose Files
+                        <span class="ui-icon icon-folder-open" aria-hidden="true"></span>Choose Files
                     </button>
                 </div>
 
@@ -51,10 +55,10 @@
                     <div id="files"></div>
                     <div class="actions">
                         <button class="btn btn-primary" onclick="analyzeFiles()">
-                            Analyze and categorize
+                            <span class="ui-icon icon-scan-search" aria-hidden="true"></span>Analyze and categorize
                         </button>
                         <button class="btn btn-secondary" onclick="clearFiles()">
-                            Clear All
+                            <span class="ui-icon icon-trash" aria-hidden="true"></span>Clear All
                         </button>
                     </div>
                 </div>
@@ -66,10 +70,10 @@
                 <p class="subtitle">Review and approve suggestions before organizing</p>
 
                 <div class="results-actions">
-                    <button class="btn btn-success" onclick="approveAll()">Approve all</button>
-                    <button class="btn btn-danger" onclick="rejectAll()">Reject all</button>
+                    <button class="btn btn-success" onclick="approveAll()"><span class="ui-icon icon-check-check" aria-hidden="true"></span>Approve all</button>
+                    <button class="btn btn-danger" onclick="rejectAll()"><span class="ui-icon icon-ban" aria-hidden="true"></span>Reject all</button>
                     <button class="btn btn-primary" onclick="organizeApproved()">
-                        Organize approved files
+                        <span class="ui-icon icon-folder-input" aria-hidden="true"></span>Organize approved files
                     </button>
                 </div>
 
@@ -81,13 +85,13 @@
                 <h2>Settings</h2>
 
                 <div class="form-group">
-                    <label for="ebooksFolder">Ebooks Folder</label>
+                    <label for="ebooksFolder"><span class="ui-icon icon-folder" aria-hidden="true"></span>Ebooks Folder</label>
                     <input type="text" id="ebooksFolder" placeholder="F:\ebooks" class="input">
                     <small>Where organized PDFs will be stored</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="provider">AI Provider</label>
+                    <label for="provider"><span class="ui-icon icon-brain-circuit" aria-hidden="true"></span>AI Provider</label>
                     <select id="provider" class="input">
                         <option value="gemini">Gemini (Google)</option>
                         <option value="anthropic">Anthropic (Claude)</option>
@@ -96,14 +100,14 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="apiKey">API Key</label>
+                    <label for="apiKey"><span class="ui-icon icon-key-round" aria-hidden="true"></span>API Key</label>
                     <input type="password" id="apiKey" placeholder="Enter your API key" class="input">
                     <small id="apiKeyHelp">Get your key at: <a href="#" id="apiKeyLink" target="_blank">...</a></small>
                 </div>
 
                 <div class="actions">
-                    <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
-                    <button class="btn btn-secondary" onclick="showUpload()">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveSettings()"><span class="ui-icon icon-save" aria-hidden="true"></span>Save Settings</button>
+                    <button class="btn btn-secondary" onclick="showUpload()"><span class="ui-icon icon-arrow-left" aria-hidden="true"></span>Cancel</button>
                 </div>
             </section>
 
@@ -112,14 +116,14 @@
                 <h2>Library</h2>
                 <div id="libraryStats" class="stats-bar"></div>
                 <div id="libraryTree" class="library-tree"></div>
-                <button class="btn btn-secondary" onclick="showUpload()">Back to Upload</button>
+                <button class="btn btn-secondary" onclick="showUpload()"><span class="ui-icon icon-arrow-left" aria-hidden="true"></span>Back to Upload</button>
             </section>
 
             <!-- Statistics -->
             <section id="statsSection" class="section" style="display: none;">
                 <h2>Statistics</h2>
                 <div id="statsContent" class="stats-grid"></div>
-                <button class="btn btn-secondary" onclick="showUpload()">Back to Upload</button>
+                <button class="btn btn-secondary" onclick="showUpload()"><span class="ui-icon icon-arrow-left" aria-hidden="true"></span>Back to Upload</button>
             </section>
 
             <!-- PDF Signature Tool -->
@@ -131,11 +135,11 @@
                 <div class="signature-step">
                     <h3>Step 1: Upload Signature Image</h3>
                     <div class="signature-upload-zone" id="signatureDropZone">
-                        <div class="upload-icon" aria-hidden="true">PNG</div>
+                        <span class="ui-icon upload-icon icon-image-up" aria-hidden="true"></span>
                         <p>Drag & drop signature PNG here or click to browse</p>
                         <input type="file" id="signatureInput" accept=".png" hidden>
                         <button class="btn btn-primary" onclick="document.getElementById('signatureInput').click()">
-                            Choose Signature PNG
+                            <span class="ui-icon icon-folder-open" aria-hidden="true"></span>Choose Signature PNG
                         </button>
                     </div>
                     <div id="signaturePreviewArea" style="display: none;">
@@ -176,42 +180,42 @@
                         <label>Position</label>
                         <div class="position-selector">
                             <button class="position-btn" data-position="top-left" onclick="selectPosition('top-left')">
-                                <span>↖</span><br>Top-Left
+                                <span class="ui-icon icon-move-up-left" aria-hidden="true"></span><br>Top-Left
                             </button>
                             <button class="position-btn" data-position="top-right" onclick="selectPosition('top-right')">
-                                <span>↗</span><br>Top-Right
+                                <span class="ui-icon icon-move-up-right" aria-hidden="true"></span><br>Top-Right
                             </button>
                             <button class="position-btn active" data-position="bottom-left" onclick="selectPosition('bottom-left')">
-                                <span>↙</span><br>Bottom-Left
+                                <span class="ui-icon icon-move-down-left" aria-hidden="true"></span><br>Bottom-Left
                             </button>
                             <button class="position-btn" data-position="bottom-right" onclick="selectPosition('bottom-right')">
-                                <span>↘</span><br>Bottom-Right
+                                <span class="ui-icon icon-move-down-right" aria-hidden="true"></span><br>Bottom-Right
                             </button>
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label for="scaleSlider">Size (<span id="scaleValue">25</span>% of A4 width)</label>
+                        <label for="scaleSlider"><span class="ui-icon icon-expand" aria-hidden="true"></span>Size (<span id="scaleValue">25</span>% of A4 width)</label>
                         <input type="range" id="scaleSlider" class="slider" min="10" max="100" value="25" oninput="updateScale(this.value)">
                     </div>
 
                     <div class="form-group">
-                        <label for="xOffsetSlider">Horizontal Margin (<span id="xOffsetValue">0.5</span> inches)</label>
+                        <label for="xOffsetSlider"><span class="ui-icon icon-move-horizontal" aria-hidden="true"></span>Horizontal Margin (<span id="xOffsetValue">0.5</span> inches)</label>
                         <input type="range" id="xOffsetSlider" class="slider" min="0.1" max="2.0" step="0.1" value="0.5" oninput="updateXOffset(this.value)">
                     </div>
 
                     <div class="form-group">
-                        <label for="yOffsetSlider">Vertical Margin (<span id="yOffsetValue">0.5</span> inches)</label>
+                        <label for="yOffsetSlider"><span class="ui-icon icon-move-vertical" aria-hidden="true"></span>Vertical Margin (<span id="yOffsetValue">0.5</span> inches)</label>
                         <input type="range" id="yOffsetSlider" class="slider" min="0.1" max="2.0" step="0.1" value="0.5" oninput="updateYOffset(this.value)">
                     </div>
 
                     <div class="form-group">
-                        <label for="opacitySlider">Opacity (<span id="opacityValue">100</span>%)</label>
+                        <label for="opacitySlider"><span class="ui-icon icon-blend" aria-hidden="true"></span>Opacity (<span id="opacityValue">100</span>%)</label>
                         <input type="range" id="opacitySlider" class="slider opacity-slider" min="10" max="100" value="100" oninput="updateOpacity(this.value)">
                     </div>
 
                     <div class="form-group">
-                        <label for="rotationSlider">Rotation (<span id="rotationValue">0</span>°)</label>
+                        <label for="rotationSlider"><span class="ui-icon icon-rotate-cw" aria-hidden="true"></span>Rotation (<span id="rotationValue">0</span>°)</label>
                         <input type="range" id="rotationSlider" class="slider rotation-slider" min="0" max="360" value="0" oninput="updateRotation(this.value)">
                     </div>
 
@@ -226,11 +230,11 @@
                 <div class="signature-step" id="signaturePdfStep" style="display: none;">
                     <h3>Step 3: Upload PDFs to Sign</h3>
                     <div class="signature-upload-zone" id="pdfSignDropZone">
-                        <div class="upload-icon" aria-hidden="true">PDF</div>
+                        <span class="ui-icon upload-icon icon-file-pdf" aria-hidden="true"></span>
                         <p>Drag & drop PDFs here or click to browse</p>
                         <input type="file" id="pdfSignInput" multiple accept=".pdf" hidden>
                         <button class="btn btn-primary" onclick="document.getElementById('pdfSignInput').click()">
-                            Choose PDF Files
+                            <span class="ui-icon icon-folder-open" aria-hidden="true"></span>Choose PDF Files
                         </button>
                     </div>
 
@@ -239,10 +243,10 @@
                         <div id="signPdfFiles"></div>
                         <div class="actions">
                             <button class="btn btn-success" onclick="processSignature()">
-                                Sign PDFs
+                                <span class="ui-icon icon-pen-line" aria-hidden="true"></span>Sign PDFs
                             </button>
                             <button class="btn btn-secondary" onclick="clearSignPdfs()">
-                                Clear All
+                                <span class="ui-icon icon-trash" aria-hidden="true"></span>Clear All
                             </button>
                         </div>
                     </div>
@@ -253,12 +257,12 @@
                     <h3>Signature complete</h3>
                     <div id="signedFilesList"></div>
                     <div class="actions">
-                        <button class="btn btn-primary" onclick="resetSignature()">Sign More PDFs</button>
-                        <button class="btn btn-secondary" onclick="showUpload()">Back to Main</button>
+                        <button class="btn btn-primary" onclick="resetSignature()"><span class="ui-icon icon-refresh" aria-hidden="true"></span>Sign More PDFs</button>
+                        <button class="btn btn-secondary" onclick="showUpload()"><span class="ui-icon icon-arrow-left" aria-hidden="true"></span>Back to Main</button>
                     </div>
                 </div>
 
-                <button class="btn btn-secondary" onclick="showUpload()">Back to Main</button>
+                <button class="btn btn-secondary" onclick="showUpload()"><span class="ui-icon icon-arrow-left" aria-hidden="true"></span>Back to Main</button>
             </section>
         </main>
 

@@ -9,6 +9,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import Any, ClassVar
 
+from ui_icons import IconStore
 from ui_theme import (
     BODY_FONT,
     MONO_FONT,
@@ -31,6 +32,9 @@ class SignatureApp:
     def __init__(self, root: tk.Tk, signature_factory: Callable[..., Any]):
         self.root = root
         self.signature_factory = signature_factory
+        self.icons = IconStore()
+        self._icon_targets: list[tuple[Any, str, str, int, str]] = []
+        self.icons.apply_window_icon(root, "app-pdf-signer")
         self.root.title("PDF Signer · Chwezi Document Suite")
         self.root.minsize(940, 900)
         self.theme = load_theme()
@@ -67,9 +71,9 @@ class SignatureApp:
         header = ttk.Frame(main, style="App.TFrame")
         header.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 18))
         header.columnconfigure(0, weight=1)
-        ttk.Label(header, text="PDF Signer", style="Title.TLabel").grid(
-            row=0, column=0, sticky="w"
-        )
+        title_label = ttk.Label(header, text="PDF Signer", style="Title.TLabel")
+        title_label.grid(row=0, column=0, sticky="w")
+        self._bind_icon(title_label, "apps", "app-pdf-signer", 30)
         ttk.Label(
             header,
             text="Place a visual signature precisely, without sending the document online.",
@@ -81,22 +85,47 @@ class SignatureApp:
         files = ttk.LabelFrame(main, text=" 01 · Files ", style="Card.TLabelframe")
         files.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 12))
         files.columnconfigure(1, weight=1)
-        self._file_row(files, 0, "Signature PNG", self.sig_path, self._browse_signature)
-        self._file_row(files, 1, "PDF or folder", self.input_path, self._browse_input)
-        self._file_row(files, 2, "Save signed copy", self.output_path, self._browse_output)
-        ttk.Checkbutton(
+        self._file_row(
+            files,
+            0,
+            "Signature PNG",
+            self.sig_path,
+            self._browse_signature,
+            ("actions", "image-up"),
+        )
+        self._file_row(
+            files,
+            1,
+            "PDF or folder",
+            self.input_path,
+            self._browse_input,
+            ("navigation", "folder-open"),
+        )
+        self._file_row(
+            files,
+            2,
+            "Save signed copy",
+            self.output_path,
+            self._browse_output,
+            ("actions", "folder-down"),
+        )
+        batch_check = ttk.Checkbutton(
             files,
             text="Batch mode · sign every PDF in the selected folder",
             variable=self.batch_mode,
             command=self._on_batch_toggle,
             style="Card.TCheckbutton",
-        ).grid(row=3, column=0, columnspan=3, sticky="w", pady=(6, 0))
+        )
+        batch_check.grid(row=3, column=0, columnspan=3, sticky="w", pady=(6, 0))
+        self._bind_icon(batch_check, "actions", "copy", 16)
 
         config = ttk.LabelFrame(main, text=" 02 · Placement ", style="Card.TLabelframe")
         config.grid(row=2, column=0, sticky="nsew", padx=(0, 6))
         config.columnconfigure(1, weight=1)
 
-        ttk.Label(config, text="Pages", style="Card.TLabel").grid(row=0, column=0, sticky="w")
+        pages_label = ttk.Label(config, text="Pages", style="Card.TLabel")
+        pages_label.grid(row=0, column=0, sticky="w")
+        self._bind_icon(pages_label, "actions", "layers", 16)
         pages = ttk.Combobox(
             config,
             textvariable=self.pages_var,
@@ -109,9 +138,9 @@ class SignatureApp:
         self._range_label = ttk.Label(config, text="Range", style="Card.TLabel")
         self._range_entry = ttk.Entry(config, textvariable=self.range_var, width=14)
 
-        ttk.Label(config, text="Exempt pages", style="Card.TLabel").grid(
-            row=2, column=0, sticky="w", pady=3
-        )
+        exempt_label = ttk.Label(config, text="Exempt pages", style="Card.TLabel")
+        exempt_label.grid(row=2, column=0, sticky="w", pady=3)
+        self._bind_icon(exempt_label, "actions", "file-minus", 16)
         ttk.Entry(config, textvariable=self.skip_var, width=18).grid(
             row=2, column=1, sticky="w", padx=8
         )
@@ -124,12 +153,13 @@ class SignatureApp:
         )
         positions = ttk.Frame(config, style="Card.TFrame")
         positions.grid(row=3, column=1, columnspan=2, sticky="w", padx=8, pady=(8, 4))
-        for code, position, row, column in self.POSITIONS:
+        for _code, position, row, column in self.POSITIONS:
             button = tk.Button(
                 positions,
-                text=f"{code} · {position.replace('-', ' ')}",
-                width=16,
-                height=1,
+                text=position.replace("-", " ").title(),
+                # Tk interprets width/height as pixels once an image is attached.
+                width=145,
+                height=30,
                 relief="flat",
                 font=(BODY_FONT, 8, "bold"),
                 cursor="hand2",
@@ -137,18 +167,34 @@ class SignatureApp:
             )
             button.grid(row=row, column=column, padx=3, pady=3)
             self._pos_buttons[position] = button
+            direction = position.replace("top", "up").replace("bottom", "down")
+            self._bind_icon(button, "actions", f"move-{direction}", 15)
 
         sliders = [
-            ("Size · % of page width", self.scale, 10, 100, 1),
-            ("Horizontal margin · inches", self.x_offset, 0.1, 2.0, 0.1),
-            ("Vertical margin · inches", self.y_offset, 0.1, 2.0, 0.1),
-            ("Opacity · %", self.opacity, 10, 100, 1),
-            ("Rotation · degrees", self.rotation, 0, 360, 1),
+            ("Size · % of page width", self.scale, 10, 100, 1, "expand"),
+            (
+                "Horizontal margin · inches",
+                self.x_offset,
+                0.1,
+                2.0,
+                0.1,
+                "move-horizontal",
+            ),
+            (
+                "Vertical margin · inches",
+                self.y_offset,
+                0.1,
+                2.0,
+                0.1,
+                "move-vertical",
+            ),
+            ("Opacity · %", self.opacity, 10, 100, 1, "blend"),
+            ("Rotation · degrees", self.rotation, 0, 360, 1, "rotate-cw"),
         ]
-        for row, (label, variable, low, high, resolution) in enumerate(sliders, start=5):
-            ttk.Label(config, text=label, style="Card.TLabel").grid(
-                row=row, column=0, sticky="w", pady=3
-            )
+        for row, (label, variable, low, high, resolution, icon_name) in enumerate(sliders, start=5):
+            slider_label = ttk.Label(config, text=label, style="Card.TLabel")
+            slider_label.grid(row=row, column=0, sticky="w", pady=3)
+            self._bind_icon(slider_label, "actions", icon_name, 15)
             value_label = ttk.Label(config, width=5, anchor="e", style="Card.TLabel")
             value_label.grid(row=row, column=2, padx=(4, 0))
             scale = ttk.Scale(
@@ -182,12 +228,14 @@ class SignatureApp:
 
         actions = ttk.Frame(main, style="App.TFrame")
         actions.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(12, 10))
-        ttk.Button(
+        sign_button = ttk.Button(
             actions,
             text="Sign selected PDF files",
             command=self._sign,
             style="Primary.TButton",
-        ).pack(side="left")
+        )
+        sign_button.pack(side="left")
+        self._bind_icon(sign_button, "actions", "pen-line", 17)
         ttk.Label(
             actions,
             text="A new file is created; the original is not overwritten.",
@@ -208,14 +256,36 @@ class SignatureApp:
         )
         self.log.grid(row=0, column=0, sticky="nsew")
 
-    def _file_row(self, parent, row, label, variable, command) -> None:
+    def _file_row(self, parent, row, label, variable, command, icon) -> None:
         ttk.Label(parent, text=label, style="Card.TLabel").grid(
             row=row, column=0, sticky="w", padx=(0, 12), pady=5
         )
         ttk.Entry(parent, textvariable=variable).grid(
             row=row, column=1, sticky="ew", padx=(0, 8), pady=5
         )
-        ttk.Button(parent, text="Browse…", command=command).grid(row=row, column=2, pady=5)
+        button = ttk.Button(parent, text="Browse…", command=command)
+        button.grid(row=row, column=2, pady=5)
+        self._bind_icon(button, icon[0], icon[1], 15)
+
+    def _bind_icon(
+        self,
+        widget: Any,
+        group: str,
+        name: str,
+        size: int,
+        compound: str = "left",
+    ) -> None:
+        self._icon_targets.append((widget, group, name, size, compound))
+
+    def _apply_icons(self) -> None:
+        for widget, group, name, size, compound in self._icon_targets:
+            image = self.icons.tk(group, name, size, self.theme)
+            if image is not None:
+                widget.configure(image=image, compound=compound)
+        theme_name = "sun" if self.theme == "dark" else "moon"
+        theme_icon = self.icons.tk("navigation", theme_name, 15, self.theme)
+        if theme_icon is not None:
+            self.theme_btn.configure(image=theme_icon, compound="left")
 
     def _apply_theme(self) -> None:
         self.palette = apply_ttk_theme(self.root, self.theme)
@@ -226,6 +296,7 @@ class SignatureApp:
             highlightcolor=self.palette.focus,
         )
         self.theme_btn.configure(text="Light mode" if self.theme == "dark" else "Dark mode")
+        self._apply_icons()
         self._select_position(self.position.get())
         self._update_preview()
 
@@ -245,9 +316,7 @@ class SignatureApp:
         if self.batch_mode.get():
             selected = filedialog.askdirectory(title="Select folder of PDFs")
         else:
-            selected = filedialog.askopenfilename(
-                title="Select PDF", filetypes=[("PDF", "*.pdf")]
-            )
+            selected = filedialog.askopenfilename(title="Select PDF", filetypes=[("PDF", "*.pdf")])
         if selected:
             self.input_path.set(selected)
             self._auto_output(selected)

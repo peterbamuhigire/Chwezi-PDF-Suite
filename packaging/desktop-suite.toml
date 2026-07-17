@@ -12,7 +12,7 @@ launcher_script = "index-app.py"
 audience = "external"
 license_file = "LICENSE"
 notices_file = "THIRD_PARTY_NOTICES.md"
-icon = ""
+icon = "static/icons/apps/app-chwezi-document-suite.ico"
 
 [build]
 python_version = "3.12"
@@ -38,6 +38,7 @@ display_name = "PDF Organizer"
 description = "Categorize and manage PDF libraries in a local browser workspace."
 script = "web_interface.py"
 executable = "ChweziOrganizer"
+icon = "static/icons/apps/app-pdf-organizer.ico"
 console = false
 smoke_args = []
 
@@ -47,6 +48,7 @@ display_name = "PDF Signer"
 description = "Place visual signatures on one PDF or a whole folder."
 script = "pdf_signature.py"
 executable = "ChweziSigner"
+icon = "static/icons/apps/app-pdf-signer.ico"
 console = false
 smoke_args = []
 
@@ -56,6 +58,7 @@ display_name = "Documents to Markdown"
 description = "Extract structured Markdown from common document formats."
 script = "documents_to_markdown.py"
 executable = "ChweziMarkdown"
+icon = "static/icons/apps/app-documents-to-markdown.ico"
 console = false
 smoke_args = []
 

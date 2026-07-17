@@ -83,6 +83,102 @@ body {
     align-items: end;
 }
 
+.header-identity {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    min-width: 0;
+}
+
+/* Shared light/dark raster icon system. */
+.ui-icon {
+    width: 18px;
+    height: 18px;
+    display: inline-block;
+    flex: 0 0 auto;
+    vertical-align: -0.18em;
+    background-image: var(--icon-light);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+}
+
+:root[data-theme="dark"] .ui-icon {
+    background-image: var(--icon-dark);
+}
+
+.app-mark {
+    width: 58px;
+    height: 58px;
+}
+
+.icon-app-organizer { --icon-light: url("../icons/raster/light/apps/app-pdf-organizer.png"); --icon-dark: url("../icons/raster/dark/apps/app-pdf-organizer.png"); }
+.icon-files { --icon-light: url("../icons/raster/light/navigation/files.png"); --icon-dark: url("../icons/raster/dark/navigation/files.png"); }
+.icon-library { --icon-light: url("../icons/raster/light/navigation/library.png"); --icon-dark: url("../icons/raster/dark/navigation/library.png"); }
+.icon-chart-column { --icon-light: url("../icons/raster/light/navigation/chart-column.png"); --icon-dark: url("../icons/raster/dark/navigation/chart-column.png"); }
+.icon-file-signature { --icon-light: url("../icons/raster/light/navigation/file-signature.png"); --icon-dark: url("../icons/raster/dark/navigation/file-signature.png"); }
+.icon-settings { --icon-light: url("../icons/raster/light/navigation/settings.png"); --icon-dark: url("../icons/raster/dark/navigation/settings.png"); }
+.icon-sun { --icon-light: url("../icons/raster/light/navigation/sun.png"); --icon-dark: url("../icons/raster/dark/navigation/sun.png"); }
+.icon-moon { --icon-light: url("../icons/raster/light/navigation/moon.png"); --icon-dark: url("../icons/raster/dark/navigation/moon.png"); }
+.icon-arrow-left { --icon-light: url("../icons/raster/light/navigation/arrow-left.png"); --icon-dark: url("../icons/raster/dark/navigation/arrow-left.png"); }
+.icon-folder-open { --icon-light: url("../icons/raster/light/navigation/folder-open.png"); --icon-dark: url("../icons/raster/dark/navigation/folder-open.png"); }
+.icon-folder { --icon-light: url("../icons/raster/light/navigation/folder.png"); --icon-dark: url("../icons/raster/dark/navigation/folder.png"); }
+.icon-folder-tree { --icon-light: url("../icons/raster/light/navigation/folder-tree.png"); --icon-dark: url("../icons/raster/dark/navigation/folder-tree.png"); }
+.icon-refresh { --icon-light: url("../icons/raster/light/navigation/refresh-cw.png"); --icon-dark: url("../icons/raster/dark/navigation/refresh-cw.png"); }
+.icon-map-pin { --icon-light: url("../icons/raster/light/navigation/map-pin.png"); --icon-dark: url("../icons/raster/dark/navigation/map-pin.png"); }
+.icon-tags { --icon-light: url("../icons/raster/light/navigation/tags.png"); --icon-dark: url("../icons/raster/dark/navigation/tags.png"); }
+.icon-file-up { --icon-light: url("../icons/raster/light/actions/file-up.png"); --icon-dark: url("../icons/raster/dark/actions/file-up.png"); }
+.icon-scan-search { --icon-light: url("../icons/raster/light/actions/scan-search.png"); --icon-dark: url("../icons/raster/dark/actions/scan-search.png"); }
+.icon-trash { --icon-light: url("../icons/raster/light/actions/trash-2.png"); --icon-dark: url("../icons/raster/dark/actions/trash-2.png"); }
+.icon-check-check { --icon-light: url("../icons/raster/light/actions/check-check.png"); --icon-dark: url("../icons/raster/dark/actions/check-check.png"); }
+.icon-folder-input { --icon-light: url("../icons/raster/light/actions/folder-input.png"); --icon-dark: url("../icons/raster/dark/actions/folder-input.png"); }
+.icon-brain-circuit { --icon-light: url("../icons/raster/light/actions/brain-circuit.png"); --icon-dark: url("../icons/raster/dark/actions/brain-circuit.png"); }
+.icon-key-round { --icon-light: url("../icons/raster/light/actions/key-round.png"); --icon-dark: url("../icons/raster/dark/actions/key-round.png"); }
+.icon-save { --icon-light: url("../icons/raster/light/actions/save.png"); --icon-dark: url("../icons/raster/dark/actions/save.png"); }
+.icon-x { --icon-light: url("../icons/raster/light/actions/x.png"); --icon-dark: url("../icons/raster/dark/actions/x.png"); }
+.icon-image-up { --icon-light: url("../icons/raster/light/actions/image-up.png"); --icon-dark: url("../icons/raster/dark/actions/image-up.png"); }
+.icon-move-up-left { --icon-light: url("../icons/raster/light/actions/move-up-left.png"); --icon-dark: url("../icons/raster/dark/actions/move-up-left.png"); }
+.icon-move-up-right { --icon-light: url("../icons/raster/light/actions/move-up-right.png"); --icon-dark: url("../icons/raster/dark/actions/move-up-right.png"); }
+.icon-move-down-left { --icon-light: url("../icons/raster/light/actions/move-down-left.png"); --icon-dark: url("../icons/raster/dark/actions/move-down-left.png"); }
+.icon-move-down-right { --icon-light: url("../icons/raster/light/actions/move-down-right.png"); --icon-dark: url("../icons/raster/dark/actions/move-down-right.png"); }
+.icon-expand { --icon-light: url("../icons/raster/light/actions/expand.png"); --icon-dark: url("../icons/raster/dark/actions/expand.png"); }
+.icon-move-horizontal { --icon-light: url("../icons/raster/light/actions/move-horizontal.png"); --icon-dark: url("../icons/raster/dark/actions/move-horizontal.png"); }
+.icon-move-vertical { --icon-light: url("../icons/raster/light/actions/move-vertical.png"); --icon-dark: url("../icons/raster/dark/actions/move-vertical.png"); }
+.icon-blend { --icon-light: url("../icons/raster/light/actions/blend.png"); --icon-dark: url("../icons/raster/dark/actions/blend.png"); }
+.icon-rotate-cw { --icon-light: url("../icons/raster/light/actions/rotate-cw.png"); --icon-dark: url("../icons/raster/dark/actions/rotate-cw.png"); }
+.icon-pen-line { --icon-light: url("../icons/raster/light/actions/pen-line.png"); --icon-dark: url("../icons/raster/dark/actions/pen-line.png"); }
+.icon-circle-x { --icon-light: url("../icons/raster/light/actions/circle-x.png"); --icon-dark: url("../icons/raster/dark/actions/circle-x.png"); }
+.icon-tag { --icon-light: url("../icons/raster/light/actions/tag.png"); --icon-dark: url("../icons/raster/dark/actions/tag.png"); }
+.icon-pencil { --icon-light: url("../icons/raster/light/actions/pencil-line.png"); --icon-dark: url("../icons/raster/dark/actions/pencil-line.png"); }
+.icon-gauge { --icon-light: url("../icons/raster/light/actions/gauge.png"); --icon-dark: url("../icons/raster/dark/actions/gauge.png"); }
+.icon-download { --icon-light: url("../icons/raster/light/actions/download.png"); --icon-dark: url("../icons/raster/dark/actions/download.png"); }
+.icon-archive-check { --icon-light: url("../icons/raster/light/actions/archive-check.png"); --icon-dark: url("../icons/raster/dark/actions/archive-check.png"); }
+.icon-calendar-clock { --icon-light: url("../icons/raster/light/actions/calendar-clock.png"); --icon-dark: url("../icons/raster/dark/actions/calendar-clock.png"); }
+.icon-file-pdf { --icon-light: url("../icons/raster/light/file-types/file-pdf.png"); --icon-dark: url("../icons/raster/dark/file-types/file-pdf.png"); }
+.icon-ban { --icon-light: url("../icons/raster/light/status/ban.png"); --icon-dark: url("../icons/raster/dark/status/ban.png"); }
+.icon-circle-check { --icon-light: url("../icons/raster/light/status/circle-check.png"); --icon-dark: url("../icons/raster/dark/status/circle-check.png"); }
+.icon-circle-info { --icon-light: url("../icons/raster/light/status/circle-info.png"); --icon-dark: url("../icons/raster/dark/status/circle-info.png"); }
+.icon-triangle-alert { --icon-light: url("../icons/raster/light/status/triangle-alert.png"); --icon-dark: url("../icons/raster/dark/status/triangle-alert.png"); }
+
+.btn-primary .ui-icon,
+.btn-success .ui-icon,
+.btn-danger .ui-icon,
+.position-btn.active .ui-icon {
+    filter: brightness(0) invert(1);
+}
+
+:root[data-theme="dark"] .btn-primary .ui-icon,
+:root[data-theme="dark"] .btn-success .ui-icon,
+:root[data-theme="dark"] .btn-danger .ui-icon,
+:root[data-theme="dark"] .position-btn.active .ui-icon {
+    filter: brightness(0);
+}
+
+.btn-primary .icon-download,
+:root[data-theme="dark"] .btn-primary .icon-download {
+    filter: none;
+}
+
 .header h1 {
     margin: 5px 0 6px;
     color: var(--text);
@@ -159,7 +255,7 @@ body {
     border-radius: 14px;
     display: grid;
     place-items: center;
-    background: var(--primary-soft);
+    background-color: var(--primary-soft);
     color: var(--primary);
     font-size: 0.78rem;
     font-weight: 800;
@@ -281,6 +377,11 @@ body {
     font-size: 2rem;
 }
 
+.file-icon .ui-icon {
+    width: 32px;
+    height: 32px;
+}
+
 .file-details h4 {
     font-size: 1rem;
     margin-bottom: 5px;
@@ -330,6 +431,14 @@ body {
 .result-filename {
     font-weight: 600;
     font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.result-label .ui-icon,
+.form-group label .ui-icon {
+    margin-right: 7px;
 }
 
 .result-actions {
@@ -453,6 +562,12 @@ body {
     transition: background 0.2s ease;
 }
 
+.folder-item > .ui-icon,
+.file-item-tree > .ui-icon,
+.stats-bar .ui-icon {
+    margin-right: 7px;
+}
+
 .folder-item:hover,
 .file-item-tree:hover {
     background: var(--bg);
@@ -482,6 +597,12 @@ body {
     border-radius: 8px;
     border: 1px solid var(--border);
     text-align: center;
+}
+
+.stat-card > .ui-icon {
+    width: 30px;
+    height: 30px;
+    margin-bottom: 8px;
 }
 
 .stat-value {
@@ -561,6 +682,9 @@ body {
     min-width: 300px;
     animation: slideIn 0.3s ease;
     border-left: 4px solid var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .toast.success {

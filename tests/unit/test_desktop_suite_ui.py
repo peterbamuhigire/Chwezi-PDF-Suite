@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
 
+from ui_icons import ICON_ROOT, icon_source
 from ui_theme import DARK, LIGHT, colour
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -73,3 +76,62 @@ def test_source_launcher_uses_python_entry_script(monkeypatch) -> None:
     assert command[0] == r"C:\Python312\python.exe"
     assert command[1].endswith("documents_to_markdown.py")
     assert command[2:] == ["--gui"]
+
+
+def test_icon_catalog_paint_references_are_resolved() -> None:
+    svg_paths = sorted(ICON_ROOT.glob("*/*.svg"))
+
+    assert len(svg_paths) == 89
+    for path in svg_paths:
+        content = path.read_text(encoding="utf-8")
+        references = set(re.findall(r"url\(#([^)]+)\)", content))
+        identifiers = set(re.findall(r"\bid\s*=\s*['\"]([^'\"]+)['\"]", content))
+        assert references <= identifiers, path
+        assert "<script" not in content.casefold()
+
+
+def test_every_svg_has_light_and_dark_desktop_rasters() -> None:
+    for svg_path in ICON_ROOT.glob("*/*.svg"):
+        group = svg_path.parent.name
+        for theme in ("light", "dark"):
+            raster = ICON_ROOT / "raster" / theme / group / f"{svg_path.stem}.png"
+            assert raster.is_file(), raster
+            assert raster.stat().st_size > 100, raster
+
+
+def test_web_stylesheet_icon_urls_resolve() -> None:
+    stylesheet_path = PROJECT_ROOT / "static" / "css" / "style.css"
+    stylesheet = stylesheet_path.read_text(encoding="utf-8")
+    icon_urls = re.findall(r'url\("(\.\./icons/[^"?]+)"\)', stylesheet)
+
+    assert icon_urls
+    for icon_url in icon_urls:
+        icon_path = (stylesheet_path.parent / icon_url).resolve()
+        assert icon_path.is_relative_to(ICON_ROOT.resolve())
+        assert icon_path.is_file(), icon_path
+
+
+def test_manifest_and_pyinstaller_spec_use_distinct_app_icons() -> None:
+    manifest_path = PROJECT_ROOT / "packaging" / "desktop-suite.toml"
+    manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
+    expected = {
+        manifest["product"]["launcher_executable"]: manifest["product"]["icon"],
+        **{app["executable"]: app["icon"] for app in manifest["applications"]},
+    }
+    spec_text = (PROJECT_ROOT / "packaging" / "generated" / "chwezi-document-suite.spec").read_text(
+        encoding="utf-8"
+    )
+
+    for executable, relative_icon in expected.items():
+        assert (PROJECT_ROOT / relative_icon).is_file()
+        escaped_executable = re.escape(executable)
+        escaped_icon = re.escape(relative_icon)
+        block_pattern = (
+            rf"name='{escaped_executable}'.+?icon=str\(PROJECT_ROOT / '{escaped_icon}'\)"
+        )
+        assert re.search(block_pattern, spec_text, flags=re.DOTALL), executable
+
+
+def test_icon_source_rejects_path_traversal() -> None:
+    with pytest.raises(ValueError):
+        icon_source("navigation", "../settings")

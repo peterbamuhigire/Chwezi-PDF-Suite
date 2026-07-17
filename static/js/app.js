@@ -28,8 +28,25 @@ function syncThemeButton() {
     const button = document.getElementById('themeToggle');
     if (!button) return;
     const current = document.documentElement.dataset.theme || 'light';
-    button.textContent = current === 'dark' ? 'Light mode' : 'Dark mode';
+    const icon = document.createElement('span');
+    icon.className = `ui-icon ${current === 'dark' ? 'icon-sun' : 'icon-moon'}`;
+    icon.setAttribute('aria-hidden', 'true');
+    button.replaceChildren(icon, document.createTextNode(current === 'dark' ? 'Light mode' : 'Dark mode'));
     button.setAttribute('aria-pressed', String(current === 'dark'));
+}
+
+function iconMarkup(name) {
+    return `<span class="ui-icon icon-${name}" aria-hidden="true"></span>`;
+}
+
+function escapeHtml(value) {
+    return String(value).replace(/[&<>'"]/g, character => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        "'": '&#39;',
+        '"': '&quot;'
+    })[character]);
 }
 
 // Drag & Drop Setup
@@ -120,14 +137,14 @@ function updateFileList() {
     filesContainer.innerHTML = uploadedFiles.map((file, index) => `
         <div class="file-item">
             <div class="file-info">
-                <div class="file-icon">PDF</div>
+                <div class="file-icon">${iconMarkup('file-pdf')}</div>
                 <div class="file-details">
-                    <h4>${file.filename}</h4>
+                    <h4>${escapeHtml(file.filename)}</h4>
                     <div class="file-size">${formatBytes(file.size)}</div>
                 </div>
             </div>
             <div class="file-actions">
-                <button class="btn btn-danger" onclick="removeFile(${index})" aria-label="Remove ${file.filename}">Remove</button>
+                <button class="btn btn-danger" onclick="removeFile(${index})" aria-label="Remove ${escapeHtml(file.filename)}">${iconMarkup('ban')}Remove</button>
             </div>
         </div>
     `).join('');
@@ -195,29 +212,29 @@ function showResults() {
         <div class="result-card ${result.approved ? 'approved' : ''}" id="result-${index}">
             <div class="result-header">
                 <div class="result-filename">
-                    ${result.filename}
+                    ${iconMarkup('file-pdf')}${escapeHtml(result.filename)}
                     ${result.is_gibberish ? '<span class="gibberish-badge">Unclear filename</span>' : ''}
                 </div>
                 <div class="result-actions">
-                    <button class="btn btn-success" onclick="approveResult(${index})">Approve</button>
-                    <button class="btn btn-danger" onclick="rejectResult(${index})">Reject</button>
+                    <button class="btn btn-success" onclick="approveResult(${index})">${iconMarkup('circle-check')}Approve</button>
+                    <button class="btn btn-danger" onclick="rejectResult(${index})">${iconMarkup('ban')}Reject</button>
                 </div>
             </div>
             <div class="result-body">
                 <div class="result-field">
-                    <span class="result-label">Category:</span>
-                    <input type="text" class="input result-value" value="${result.category}"
+                    <span class="result-label">${iconMarkup('tag')}Category:</span>
+                    <input type="text" class="input result-value" value="${escapeHtml(result.category)}"
                            onchange="updateCategory(${index}, this.value)">
                 </div>
                 ${result.rename ? `
                     <div class="result-field">
-                        <span class="result-label">Rename to:</span>
-                        <input type="text" class="input result-value" value="${result.rename}"
+                        <span class="result-label">${iconMarkup('pencil')}Rename to:</span>
+                        <input type="text" class="input result-value" value="${escapeHtml(result.rename)}"
                                onchange="updateRename(${index}, this.value)">
                     </div>
                 ` : ''}
                 <div class="result-field">
-                    <span class="result-label">Confidence:</span>
+                    <span class="result-label">${iconMarkup('gauge')}Confidence:</span>
                     <span class="confidence-badge confidence-${result.confidence}">
                         ${result.confidence.toUpperCase()}
                     </span>
@@ -435,9 +452,9 @@ function hideAllSections() {
 function renderLibraryTree(tree, stats) {
     const statsBar = document.getElementById('libraryStats');
     statsBar.innerHTML = `
-        <div><strong>Total PDFs:</strong> ${stats.total_pdfs}</div>
-        <div><strong>Folders:</strong> ${stats.total_folders}</div>
-        <div><strong>Location:</strong> ${stats.ebooks_folder}</div>
+        <div>${iconMarkup('file-pdf')}<strong>Total PDFs:</strong> ${Number(stats.total_pdfs) || 0}</div>
+        <div>${iconMarkup('folder-tree')}<strong>Folders:</strong> ${Number(stats.total_folders) || 0}</div>
+        <div>${iconMarkup('map-pin')}<strong>Location:</strong> ${escapeHtml(stats.ebooks_folder || '')}</div>
     `;
 
     const treeContainer = document.getElementById('libraryTree');
@@ -445,13 +462,13 @@ function renderLibraryTree(tree, stats) {
 }
 
 function renderTreeItems(items) {
-    if (!items || items.length === 0) return '<p>No files found</p>';
+    if (!items || items.length === 0) return `<p>${iconMarkup('folder')}No files found</p>`;
 
     return items.map(item => {
         if (item.type === 'folder') {
             return `
                 <div class="folder-item">
-                    Folder · ${item.name} (${item.pdf_count} PDFs)
+                    ${iconMarkup('folder')} ${escapeHtml(item.name)} (${Number(item.pdf_count) || 0} PDFs)
                     <div class="folder-children">
                         ${renderTreeItems(item.children)}
                     </div>
@@ -460,7 +477,7 @@ function renderTreeItems(items) {
         } else {
             return `
                 <div class="file-item-tree">
-                    PDF · ${item.name} (${formatBytes(item.size)})
+                    ${iconMarkup('file-pdf')} ${escapeHtml(item.name)} (${formatBytes(item.size)})
                 </div>
             `;
         }
@@ -472,19 +489,22 @@ function renderStats(stats) {
 
     const categoryList = Object.entries(stats.categories || {})
         .sort((a, b) => b[1] - a[1])
-        .map(([cat, count]) => `<div><strong>${cat}:</strong> ${count} PDFs</div>`)
+        .map(([cat, count]) => `<div>${iconMarkup('tag')}<strong>${escapeHtml(cat)}:</strong> ${Number(count) || 0} PDFs</div>`)
         .join('');
 
     container.innerHTML = `
         <div class="stat-card">
+            ${iconMarkup('archive-check')}
             <div class="stat-value">${stats.total_organized}</div>
             <div class="stat-label">Total Organized</div>
         </div>
         <div class="stat-card">
+            ${iconMarkup('tags')}
             <div class="stat-value">${Object.keys(stats.categories || {}).length}</div>
             <div class="stat-label">Categories Used</div>
         </div>
         <div class="stat-card">
+            ${iconMarkup('calendar-clock')}
             <div class="stat-value">${stats.last_run ? new Date(stats.last_run).toLocaleDateString() : 'Never'}</div>
             <div class="stat-label">Last Run</div>
         </div>
@@ -510,7 +530,16 @@ function showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.textContent = message;
+    const iconNames = {
+        success: 'circle-check',
+        error: 'triangle-alert',
+        warning: 'triangle-alert',
+        info: 'circle-info'
+    };
+    const icon = document.createElement('span');
+    icon.className = `ui-icon icon-${iconNames[type] || iconNames.info}`;
+    icon.setAttribute('aria-hidden', 'true');
+    toast.append(icon, document.createTextNode(message));
 
     container.appendChild(toast);
 
@@ -700,7 +729,7 @@ async function uploadPdfsForSigning(files) {
             pdfFiles.innerHTML = result.files.map(file => `
                 <div class="file-card">
                     <div class="file-info">
-                        <strong>${file.filename}</strong>
+                        ${iconMarkup('file-pdf')}<strong>${escapeHtml(file.filename)}</strong>
                         <small>${formatBytes(file.size)}</small>
                     </div>
                 </div>
@@ -904,11 +933,11 @@ async function processSignature() {
                     ${result.signed.map(file => `
                         <div class="file-card">
                             <div class="file-info">
-                                <strong>${file.filename}</strong>
+                                ${iconMarkup('file-pdf')}<strong>${escapeHtml(file.filename)}</strong>
                                 <small>Pages signed: ${file.pages_signed} / ${file.total_pages}</small>
                             </div>
-                            <a href="/api/signature/download/${file.filename}" class="btn btn-sm btn-primary" download>
-                                Download
+                            <a href="/api/signature/download/${encodeURIComponent(file.filename)}" class="btn btn-sm btn-primary" download>
+                                ${iconMarkup('download')}Download
                             </a>
                         </div>
                     `).join('')}
@@ -917,8 +946,8 @@ async function processSignature() {
                             <h4>Failed Files:</h4>
                             ${result.failed.map(file => `
                                 <div class="file-card error">
-                                    <strong>${file.filename}</strong>
-                                    <small>${file.error}</small>
+                                    ${iconMarkup('triangle-alert')}<strong>${escapeHtml(file.filename)}</strong>
+                                    <small>${escapeHtml(file.error)}</small>
                                 </div>
                             `).join('')}
                         </div>

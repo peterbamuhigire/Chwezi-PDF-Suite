@@ -888,6 +888,7 @@ def launch_gui():
     import tkinter as tk
     from tkinter import filedialog, messagebox, scrolledtext, ttk
 
+    from ui_icons import IconStore
     from ui_theme import (
         MONO_FONT,
         apply_ttk_theme,
@@ -900,6 +901,10 @@ def launch_gui():
     class App:
         def __init__(self, root):
             self.root = root
+            self.icons = IconStore()
+            self._icon_targets = []
+            self._status_kind = "info"
+            self.icons.apply_window_icon(root, "app-documents-to-markdown")
             self.root.title("Documents to Markdown · Chwezi Document Suite")
             self.root.minsize(820, 650)
             self.theme = load_theme()
@@ -928,11 +933,13 @@ def launch_gui():
             header = ttk.Frame(main, style="App.TFrame")
             header.grid(row=0, column=0, sticky="ew", pady=(0, 18))
             header.columnconfigure(0, weight=1)
-            ttk.Label(
+            title_label = ttk.Label(
                 header,
                 text="Documents to Markdown",
                 style="Title.TLabel",
-            ).grid(row=0, column=0, sticky="w")
+            )
+            title_label.grid(row=0, column=0, sticky="w")
+            self._bind_icon(title_label, "apps", "app-documents-to-markdown", 30)
             ttk.Label(
                 header,
                 text="Extract useful structure from PDF, EPUB, Word, and PowerPoint files.",
@@ -948,22 +955,26 @@ def launch_gui():
             )
             mode_frame.grid(row=1, column=0, sticky="ew", pady=(0, 12))
             mode_frame.columnconfigure((0, 1), weight=1)
-            ttk.Radiobutton(
+            single_mode = ttk.Radiobutton(
                 mode_frame,
                 text="Single document",
                 variable=self.mode,
                 value="file",
                 command=self._sync_defaults,
                 style="Card.TRadiobutton",
-            ).grid(row=0, column=0, sticky="w", padx=(0, 18), pady=2)
-            ttk.Radiobutton(
+            )
+            single_mode.grid(row=0, column=0, sticky="w", padx=(0, 18), pady=2)
+            self._bind_icon(single_mode, "actions", "file", 16)
+            folder_mode = ttk.Radiobutton(
                 mode_frame,
                 text="A whole folder",
                 variable=self.mode,
                 value="directory",
                 command=self._sync_defaults,
                 style="Card.TRadiobutton",
-            ).grid(row=0, column=1, sticky="w", pady=2)
+            )
+            folder_mode.grid(row=0, column=1, sticky="w", pady=2)
+            self._bind_icon(folder_mode, "navigation", "folder-tree", 16)
 
             paths = ttk.LabelFrame(
                 main,
@@ -973,8 +984,22 @@ def launch_gui():
             paths.grid(row=2, column=0, sticky="ew", pady=(0, 12))
             paths.columnconfigure(1, weight=1)
 
-            self._file_row(paths, 0, "Source", self.input_path, self._browse_input)
-            self._file_row(paths, 1, "Save Markdown in", self.output_dir, self._browse_output)
+            self._file_row(
+                paths,
+                0,
+                "Source",
+                self.input_path,
+                self._browse_input,
+                ("navigation", "folder-open"),
+            )
+            self._file_row(
+                paths,
+                1,
+                "Save Markdown in",
+                self.output_dir,
+                self._browse_output,
+                ("actions", "folder-output"),
+            )
 
             actions = ttk.Frame(main, style="App.TFrame")
             actions.grid(row=3, column=0, sticky="ew", pady=(2, 12))
@@ -985,11 +1010,19 @@ def launch_gui():
                 style="Primary.TButton",
             )
             self.convert_btn.pack(side="left")
-            ttk.Button(actions, text="Clear activity", command=self._clear_log).pack(
+            self._bind_icon(self.convert_btn, "file-types", "file-type-markdown", 17)
+            clear_button = ttk.Button(
+                actions, text="Clear activity", command=self._clear_log
+            )
+            clear_button.pack(
                 side="left", padx=(10, 0)
             )
+            self._bind_icon(clear_button, "actions", "eraser", 16)
 
-            ttk.Label(main, textvariable=self.status, style="Status.TLabel").grid(
+            self.status_label = ttk.Label(
+                main, textvariable=self.status, style="Status.TLabel"
+            )
+            self.status_label.grid(
                 row=4, column=0, sticky="ew", pady=(0, 8)
             )
             ttk.Progressbar(main, maximum=100, variable=self.progress).grid(
@@ -1014,16 +1047,44 @@ def launch_gui():
             )
             self.log.grid(row=0, column=0, sticky="nsew")
 
-        def _file_row(self, parent, row, label, variable, command):
+        def _file_row(self, parent, row, label, variable, command, icon):
             ttk.Label(parent, text=label, style="Card.TLabel").grid(
                 row=row, column=0, sticky="w", padx=(0, 12), pady=5
             )
             ttk.Entry(parent, textvariable=variable).grid(
                 row=row, column=1, sticky="ew", padx=(0, 8), pady=5
             )
-            ttk.Button(parent, text="Browse…", command=command).grid(
-                row=row, column=2, pady=5
-            )
+            button = ttk.Button(parent, text="Browse…", command=command)
+            button.grid(row=row, column=2, pady=5)
+            self._bind_icon(button, icon[0], icon[1], 15)
+
+        def _bind_icon(self, widget, group, name, size, compound="left"):
+            self._icon_targets.append((widget, group, name, size, compound))
+
+        def _apply_icons(self):
+            for widget, group, name, size, compound in self._icon_targets:
+                image = self.icons.tk(group, name, size, self.theme)
+                if image is not None:
+                    widget.configure(image=image, compound=compound)
+            theme_name = "sun" if self.theme == "dark" else "moon"
+            theme_icon = self.icons.tk("navigation", theme_name, 15, self.theme)
+            if theme_icon is not None:
+                self.theme_btn.configure(image=theme_icon, compound="left")
+            status_icons = {
+                "info": ("status", "circle-info"),
+                "loading": ("status", "loader-circle"),
+                "success": ("status", "circle-check"),
+                "error": ("status", "triangle-alert"),
+            }
+            group, name = status_icons[self._status_kind]
+            status_icon = self.icons.tk(group, name, 16, self.theme)
+            if status_icon is not None:
+                self.status_label.configure(image=status_icon, compound="left")
+
+        def _set_status(self, message, kind="info"):
+            self.status.set(message)
+            self._status_kind = kind
+            self._apply_icons()
 
         def _apply_theme(self):
             self.palette = apply_ttk_theme(self.root, self.theme)
@@ -1031,6 +1092,7 @@ def launch_gui():
             self.theme_btn.configure(
                 text="Light mode" if self.theme == "dark" else "Dark mode"
             )
+            self._apply_icons()
 
         def _toggle_theme(self):
             self.theme = "light" if self.theme == "dark" else "dark"
@@ -1097,7 +1159,7 @@ def launch_gui():
 
             self._clear_log()
             self.progress.set(0)
-            self.status.set("Starting conversion...")
+            self._set_status("Starting conversion...", "loading")
             self._append_log(f"Input: {input_path}")
             self._append_log(f"Output: {output_dir}")
             self.convert_btn.state(["disabled"])
@@ -1143,22 +1205,22 @@ def launch_gui():
                     kind, payload = self.queue.get_nowait()
                     if kind == "info":
                         self._append_log(payload)
-                        self.status.set(payload)
+                        self._set_status(payload, "info")
                     elif kind == "progress":
                         current, total, message = payload
                         percent = 0 if total <= 0 else (current / total) * 100
                         self.progress.set(percent)
-                        self.status.set(message)
+                        self._set_status(message, "loading")
                         self._append_log(message)
                     elif kind == "done":
                         self.progress.set(100)
                         message = f"Finished. Created {len(payload)} Markdown file(s)."
-                        self.status.set(message)
+                        self._set_status(message, "success")
                         self._append_log(message)
                         self.convert_btn.state(["!disabled"])
                         messagebox.showinfo("Conversion Complete", message)
                     elif kind == "error":
-                        self.status.set("Conversion failed.")
+                        self._set_status("Conversion failed.", "error")
                         self._append_log(f"ERROR: {payload}")
                         self.convert_btn.state(["!disabled"])
                         messagebox.showerror("Conversion Failed", payload)

@@ -42,6 +42,7 @@ python index-app.py
 ```
 
 The launcher opens centered and provides Documents to Markdown, PDF Organizer, and PDF Signer.
+Its saved light/dark preference applies to the complete interface and to each maintained GUI.
 The startup sequence raises the window once so it does not remain hidden behind another Windows
 application.
 
@@ -61,6 +62,24 @@ python -m pip install "customtkinter>=5.2.0"
 If the command remains running but no window is visible, use `Alt+Tab` once and confirm that no
 older launcher process is still running in Task Manager. The current launcher maps its window only
 after the Tk event loop starts, which avoids the previous invisible-start condition.
+
+### Windows executable suite
+
+The repository contains a locked, manifest-driven PyInstaller workflow that builds the launcher
+and its three tools into one distributable folder. Install `uv`, then run:
+
+```powershell
+uv sync --locked --extra suite --extra test --group desktop-build
+python C:\Users\Peter\.claude\skills\skills\languages\python-modern-standards\scripts\desktop_suite_packager.py doctor --config packaging\desktop-suite.toml
+python C:\Users\Peter\.claude\skills\skills\languages\python-modern-standards\scripts\desktop_suite_packager.py generate --config packaging\desktop-suite.toml
+.\scripts\build-desktop-suite.ps1 -UnsignedDevelopmentBuild -SkipInstaller
+```
+
+The development command creates `release/chwezi-document-suite-0.2.0-windows-x64.zip` and a
+machine-readable evidence file. Do not publish that unsigned artifact. Public releases require a
+repository licence, Authenticode configuration, and Inno Setup. See the
+[desktop distribution guide](docs/guides/DESKTOP_DISTRIBUTION.md) for the full workflow and for
+instructions on reusing the automation in another Python tools project.
 
 ### Command line
 

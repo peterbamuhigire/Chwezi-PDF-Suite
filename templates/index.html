@@ -3,20 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Organizer - AI-Powered Library Manager</title>
+    <title>PDF Organizer · Chwezi Document Suite</title>
+    <script>
+        (() => {
+            const saved = localStorage.getItem('chwezi-theme');
+            const preferred = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.dataset.theme = saved || preferred;
+        })();
+    </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <header class="header">
-            <h1>📚 PDF Organizer</h1>
-            <p class="tagline">AI-Powered Library Management with Drag & Drop</p>
+            <div class="header-copy">
+                <span class="eyebrow">LOCAL LIBRARY WORKFLOW</span>
+                <h1>PDF Organizer</h1>
+                <p class="tagline">Review, categorize, and organize a document collection from one calm workspace.</p>
+            </div>
             <div class="header-actions">
-                <button class="btn btn-secondary" onclick="showSettings()">⚙️ Settings</button>
-                <button class="btn btn-secondary" onclick="showSignature()">✍️ Sign PDFs</button>
-                <button class="btn btn-secondary" onclick="showBrowser()">📁 Browse Library</button>
-                <button class="btn btn-secondary" onclick="showStats()">📊 Statistics</button>
+                <button class="btn btn-secondary" onclick="showUpload()">Organize</button>
+                <button class="btn btn-secondary" onclick="showBrowser()">Library</button>
+                <button class="btn btn-secondary" onclick="showStats()">Statistics</button>
+                <button class="btn btn-secondary" onclick="showSignature()">Sign PDFs</button>
+                <button class="btn btn-secondary" onclick="showSettings()">Settings</button>
+                <button id="themeToggle" class="btn btn-theme" type="button" onclick="toggleTheme()" aria-label="Switch colour theme">Theme</button>
             </div>
         </header>
 
@@ -25,9 +36,9 @@
             <!-- Upload Section -->
             <section id="uploadSection" class="section">
                 <div class="upload-area" id="dropZone">
-                    <div class="upload-icon">📄</div>
-                    <h2>Drag & Drop PDFs Here</h2>
-                    <p>or click to browse</p>
+                    <div class="upload-icon" aria-hidden="true">PDF</div>
+                    <h2>Bring in the PDFs you want to organize</h2>
+                    <p>Drop files here, or choose them from this computer.</p>
                     <input type="file" id="fileInput" multiple accept=".pdf" hidden>
                     <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
                         Choose Files
@@ -40,7 +51,7 @@
                     <div id="files"></div>
                     <div class="actions">
                         <button class="btn btn-primary" onclick="analyzeFiles()">
-                            🤖 Analyze & Categorize
+                            Analyze and categorize
                         </button>
                         <button class="btn btn-secondary" onclick="clearFiles()">
                             Clear All
@@ -51,14 +62,14 @@
 
             <!-- Analysis Results -->
             <section id="resultsSection" class="section" style="display: none;">
-                <h2>📋 Categorization Results</h2>
+                <h2>Categorization results</h2>
                 <p class="subtitle">Review and approve suggestions before organizing</p>
 
                 <div class="results-actions">
-                    <button class="btn btn-success" onclick="approveAll()">✓ Approve All</button>
-                    <button class="btn btn-danger" onclick="rejectAll()">✗ Reject All</button>
+                    <button class="btn btn-success" onclick="approveAll()">Approve all</button>
+                    <button class="btn btn-danger" onclick="rejectAll()">Reject all</button>
                     <button class="btn btn-primary" onclick="organizeApproved()">
-                        📦 Organize Approved Files
+                        Organize approved files
                     </button>
                 </div>
 
@@ -67,7 +78,7 @@
 
             <!-- Settings Panel -->
             <section id="settingsSection" class="section" style="display: none;">
-                <h2>⚙️ Settings</h2>
+                <h2>Settings</h2>
 
                 <div class="form-group">
                     <label for="ebooksFolder">Ebooks Folder</label>
@@ -98,7 +109,7 @@
 
             <!-- Library Browser -->
             <section id="browserSection" class="section" style="display: none;">
-                <h2>📁 Library Browser</h2>
+                <h2>Library</h2>
                 <div id="libraryStats" class="stats-bar"></div>
                 <div id="libraryTree" class="library-tree"></div>
                 <button class="btn btn-secondary" onclick="showUpload()">Back to Upload</button>
@@ -106,21 +117,21 @@
 
             <!-- Statistics -->
             <section id="statsSection" class="section" style="display: none;">
-                <h2>📊 Statistics</h2>
+                <h2>Statistics</h2>
                 <div id="statsContent" class="stats-grid"></div>
                 <button class="btn btn-secondary" onclick="showUpload()">Back to Upload</button>
             </section>
 
             <!-- PDF Signature Tool -->
             <section id="signatureSection" class="section" style="display: none;">
-                <h2>✍️ Sign PDFs</h2>
+                <h2>Sign PDFs</h2>
                 <p class="subtitle">Add your signature to PDFs - No AI credits required!</p>
 
                 <!-- Signature Upload -->
                 <div class="signature-step">
                     <h3>Step 1: Upload Signature Image</h3>
                     <div class="signature-upload-zone" id="signatureDropZone">
-                        <div class="upload-icon">🖼️</div>
+                        <div class="upload-icon" aria-hidden="true">PNG</div>
                         <p>Drag & drop signature PNG here or click to browse</p>
                         <input type="file" id="signatureInput" accept=".png" hidden>
                         <button class="btn btn-primary" onclick="document.getElementById('signatureInput').click()">
@@ -215,7 +226,7 @@
                 <div class="signature-step" id="signaturePdfStep" style="display: none;">
                     <h3>Step 3: Upload PDFs to Sign</h3>
                     <div class="signature-upload-zone" id="pdfSignDropZone">
-                        <div class="upload-icon">📄</div>
+                        <div class="upload-icon" aria-hidden="true">PDF</div>
                         <p>Drag & drop PDFs here or click to browse</p>
                         <input type="file" id="pdfSignInput" multiple accept=".pdf" hidden>
                         <button class="btn btn-primary" onclick="document.getElementById('pdfSignInput').click()">
@@ -228,7 +239,7 @@
                         <div id="signPdfFiles"></div>
                         <div class="actions">
                             <button class="btn btn-success" onclick="processSignature()">
-                                ✍️ Sign PDFs
+                                Sign PDFs
                             </button>
                             <button class="btn btn-secondary" onclick="clearSignPdfs()">
                                 Clear All
@@ -239,7 +250,7 @@
 
                 <!-- Results -->
                 <div id="signatureResults" style="display: none;">
-                    <h3>✓ Signature Complete</h3>
+                    <h3>Signature complete</h3>
                     <div id="signedFilesList"></div>
                     <div class="actions">
                         <button class="btn btn-primary" onclick="resetSignature()">Sign More PDFs</button>

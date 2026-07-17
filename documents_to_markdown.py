@@ -888,11 +888,22 @@ def launch_gui():
     import tkinter as tk
     from tkinter import filedialog, messagebox, scrolledtext, ttk
 
+    from ui_theme import (
+        MONO_FONT,
+        apply_ttk_theme,
+        load_theme,
+        save_theme,
+        style_text_widget,
+    )
+    from window_geometry import centered_geometry
+
     class App:
         def __init__(self, root):
             self.root = root
-            self.root.title("Document to Markdown")
-            self.root.geometry("860x620")
+            self.root.title("Documents to Markdown · Chwezi Document Suite")
+            self.root.minsize(820, 650)
+            self.theme = load_theme()
+            self.palette = apply_ttk_theme(self.root, self.theme)
 
             self.mode = tk.StringVar(value="file")
             self.input_path = tk.StringVar()
@@ -903,73 +914,128 @@ def launch_gui():
             self.worker = None
 
             self._build()
+            self._apply_theme()
             self.root.after(100, self._drain_queue)
 
         def _build(self):
-            pad = dict(padx=8, pady=4)
-
-            main = ttk.Frame(self.root, padding=10)
+            main = ttk.Frame(self.root, padding=24, style="App.TFrame")
             main.grid(row=0, column=0, sticky="nsew")
             self.root.columnconfigure(0, weight=1)
             self.root.rowconfigure(0, weight=1)
-            main.columnconfigure(1, weight=1)
-            main.rowconfigure(5, weight=1)
+            main.columnconfigure(0, weight=1)
+            main.rowconfigure(6, weight=1)
 
-            ttk.Label(main, text="Document to Markdown", font=("Segoe UI", 16, "bold")).grid(
-                row=0, column=0, columnspan=3, sticky="w", **pad
-            )
+            header = ttk.Frame(main, style="App.TFrame")
+            header.grid(row=0, column=0, sticky="ew", pady=(0, 18))
+            header.columnconfigure(0, weight=1)
             ttk.Label(
-                main,
-                text="Extract PDF, EPUB, Word, and PowerPoint content into readable Markdown.",
-                foreground="#555",
-            ).grid(row=1, column=0, columnspan=3, sticky="w", **pad)
+                header,
+                text="Documents to Markdown",
+                style="Title.TLabel",
+            ).grid(row=0, column=0, sticky="w")
+            ttk.Label(
+                header,
+                text="Extract useful structure from PDF, EPUB, Word, and PowerPoint files.",
+                style="Subtitle.TLabel",
+            ).grid(row=1, column=0, sticky="w", pady=(4, 0))
+            self.theme_btn = ttk.Button(header, command=self._toggle_theme)
+            self.theme_btn.grid(row=0, column=1, rowspan=2, sticky="e")
 
-            mode_frame = ttk.LabelFrame(main, text="Input Type", padding=8)
-            mode_frame.grid(row=2, column=0, columnspan=3, sticky="ew", **pad)
+            mode_frame = ttk.LabelFrame(
+                main,
+                text=" 01 · Choose the workload ",
+                style="Card.TLabelframe",
+            )
+            mode_frame.grid(row=1, column=0, sticky="ew", pady=(0, 12))
+            mode_frame.columnconfigure((0, 1), weight=1)
             ttk.Radiobutton(
                 mode_frame,
-                text="Single document file",
+                text="Single document",
                 variable=self.mode,
                 value="file",
                 command=self._sync_defaults,
-            ).grid(row=0, column=0, sticky="w", padx=4, pady=2)
+                style="Card.TRadiobutton",
+            ).grid(row=0, column=0, sticky="w", padx=(0, 18), pady=2)
             ttk.Radiobutton(
                 mode_frame,
-                text="Whole directory of documents",
+                text="A whole folder",
                 variable=self.mode,
                 value="directory",
                 command=self._sync_defaults,
-            ).grid(row=0, column=1, sticky="w", padx=12, pady=2)
+                style="Card.TRadiobutton",
+            ).grid(row=0, column=1, sticky="w", pady=2)
 
-            paths = ttk.LabelFrame(main, text="Paths", padding=8)
-            paths.grid(row=3, column=0, columnspan=3, sticky="ew", **pad)
+            paths = ttk.LabelFrame(
+                main,
+                text=" 02 · Select source and destination ",
+                style="Card.TLabelframe",
+            )
+            paths.grid(row=2, column=0, sticky="ew", pady=(0, 12))
             paths.columnconfigure(1, weight=1)
 
-            self._file_row(paths, 0, "Document file or folder:", self.input_path, self._browse_input)
-            self._file_row(paths, 1, "Output directory:", self.output_dir, self._browse_output)
+            self._file_row(paths, 0, "Source", self.input_path, self._browse_input)
+            self._file_row(paths, 1, "Save Markdown in", self.output_dir, self._browse_output)
 
-            actions = ttk.Frame(main)
-            actions.grid(row=4, column=0, columnspan=3, sticky="ew", **pad)
-            self.convert_btn = ttk.Button(actions, text="Convert to Markdown", command=self._start)
-            self.convert_btn.pack(side="left", padx=4)
-            ttk.Button(actions, text="Clear Log", command=self._clear_log).pack(side="left", padx=4)
-
-            ttk.Label(main, textvariable=self.status).grid(row=5, column=0, columnspan=3, sticky="w", **pad)
-            ttk.Progressbar(main, maximum=100, variable=self.progress).grid(
-                row=6, column=0, columnspan=3, sticky="ew", **pad
+            actions = ttk.Frame(main, style="App.TFrame")
+            actions.grid(row=3, column=0, sticky="ew", pady=(2, 12))
+            self.convert_btn = ttk.Button(
+                actions,
+                text="Convert to Markdown",
+                command=self._start,
+                style="Primary.TButton",
+            )
+            self.convert_btn.pack(side="left")
+            ttk.Button(actions, text="Clear activity", command=self._clear_log).pack(
+                side="left", padx=(10, 0)
             )
 
-            log_frame = ttk.LabelFrame(main, text="Activity Log", padding=8)
-            log_frame.grid(row=7, column=0, columnspan=3, sticky="nsew", **pad)
+            ttk.Label(main, textvariable=self.status, style="Status.TLabel").grid(
+                row=4, column=0, sticky="ew", pady=(0, 8)
+            )
+            ttk.Progressbar(main, maximum=100, variable=self.progress).grid(
+                row=5, column=0, sticky="ew", pady=(0, 12)
+            )
+
+            log_frame = ttk.LabelFrame(
+                main,
+                text=" Activity ",
+                style="Card.TLabelframe",
+            )
+            log_frame.grid(row=6, column=0, sticky="nsew")
             log_frame.columnconfigure(0, weight=1)
             log_frame.rowconfigure(0, weight=1)
-            self.log = scrolledtext.ScrolledText(log_frame, height=20, font=("Consolas", 9))
+            self.log = scrolledtext.ScrolledText(
+                log_frame,
+                height=14,
+                font=(MONO_FONT, 9),
+                padx=12,
+                pady=10,
+                wrap="word",
+            )
             self.log.grid(row=0, column=0, sticky="nsew")
 
         def _file_row(self, parent, row, label, variable, command):
-            ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", pady=2)
-            ttk.Entry(parent, textvariable=variable).grid(row=row, column=1, sticky="ew", padx=4, pady=2)
-            ttk.Button(parent, text="Browse", command=command).grid(row=row, column=2, padx=4, pady=2)
+            ttk.Label(parent, text=label, style="Card.TLabel").grid(
+                row=row, column=0, sticky="w", padx=(0, 12), pady=5
+            )
+            ttk.Entry(parent, textvariable=variable).grid(
+                row=row, column=1, sticky="ew", padx=(0, 8), pady=5
+            )
+            ttk.Button(parent, text="Browse…", command=command).grid(
+                row=row, column=2, pady=5
+            )
+
+        def _apply_theme(self):
+            self.palette = apply_ttk_theme(self.root, self.theme)
+            style_text_widget(self.log, self.palette)
+            self.theme_btn.configure(
+                text="Light mode" if self.theme == "dark" else "Dark mode"
+            )
+
+        def _toggle_theme(self):
+            self.theme = "light" if self.theme == "dark" else "dark"
+            save_theme(self.theme)
+            self._apply_theme()
 
         def _browse_input(self):
             if self.mode.get() == "directory":
@@ -1062,7 +1128,11 @@ def launch_gui():
                 )
 
             try:
-                results = converter.convert(input_path, output_dir, progress_callback=progress_callback)
+                results = converter.convert(
+                    input_path,
+                    output_dir,
+                    progress_callback=progress_callback,
+                )
                 self.queue.put(("done", results))
             except Exception as exc:
                 self.queue.put(("error", str(exc)))
@@ -1099,6 +1169,17 @@ def launch_gui():
 
     root = tk.Tk()
     App(root)
+    root.update_idletasks()
+    width = max(root.winfo_reqwidth(), 900)
+    height = max(root.winfo_reqheight(), 690)
+    root.geometry(
+        centered_geometry(
+            width,
+            height,
+            root.winfo_screenwidth(),
+            root.winfo_screenheight(),
+        )
+    )
     root.mainloop()
 
 

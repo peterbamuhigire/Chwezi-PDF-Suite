@@ -9,10 +9,27 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initializeApp() {
+    syncThemeButton();
     setupDragDrop();
     setupFileInput();
     loadSettings();
     updateAPIKeyLink();
+}
+
+function toggleTheme() {
+    const current = document.documentElement.dataset.theme || 'light';
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem('chwezi-theme', next);
+    syncThemeButton();
+}
+
+function syncThemeButton() {
+    const button = document.getElementById('themeToggle');
+    if (!button) return;
+    const current = document.documentElement.dataset.theme || 'light';
+    button.textContent = current === 'dark' ? 'Light mode' : 'Dark mode';
+    button.setAttribute('aria-pressed', String(current === 'dark'));
 }
 
 // Drag & Drop Setup
@@ -103,14 +120,14 @@ function updateFileList() {
     filesContainer.innerHTML = uploadedFiles.map((file, index) => `
         <div class="file-item">
             <div class="file-info">
-                <div class="file-icon">📄</div>
+                <div class="file-icon">PDF</div>
                 <div class="file-details">
                     <h4>${file.filename}</h4>
                     <div class="file-size">${formatBytes(file.size)}</div>
                 </div>
             </div>
             <div class="file-actions">
-                <button class="btn btn-danger" onclick="removeFile(${index})">✗</button>
+                <button class="btn btn-danger" onclick="removeFile(${index})" aria-label="Remove ${file.filename}">Remove</button>
             </div>
         </div>
     `).join('');
@@ -179,11 +196,11 @@ function showResults() {
             <div class="result-header">
                 <div class="result-filename">
                     ${result.filename}
-                    ${result.is_gibberish ? '<span class="gibberish-badge">🔍 Gibberish Name</span>' : ''}
+                    ${result.is_gibberish ? '<span class="gibberish-badge">Unclear filename</span>' : ''}
                 </div>
                 <div class="result-actions">
-                    <button class="btn btn-success" onclick="approveResult(${index})">✓</button>
-                    <button class="btn btn-danger" onclick="rejectResult(${index})">✗</button>
+                    <button class="btn btn-success" onclick="approveResult(${index})">Approve</button>
+                    <button class="btn btn-danger" onclick="rejectResult(${index})">Reject</button>
                 </div>
             </div>
             <div class="result-body">
@@ -434,7 +451,7 @@ function renderTreeItems(items) {
         if (item.type === 'folder') {
             return `
                 <div class="folder-item">
-                    📁 ${item.name} (${item.pdf_count} PDFs)
+                    Folder · ${item.name} (${item.pdf_count} PDFs)
                     <div class="folder-children">
                         ${renderTreeItems(item.children)}
                     </div>
@@ -443,7 +460,7 @@ function renderTreeItems(items) {
         } else {
             return `
                 <div class="file-item-tree">
-                    📄 ${item.name} (${formatBytes(item.size)})
+                    PDF · ${item.name} (${formatBytes(item.size)})
                 </div>
             `;
         }
@@ -830,7 +847,7 @@ function renderPreviewCanvas() {
     ctx.fillRect(x, y, sigWidth, sigHeight);
 
     ctx.fillStyle = 'white';
-    ctx.font = 'bold 14px Arial';
+    ctx.font = 'bold 14px "Trebuchet MS"';
     ctx.textAlign = 'center';
     ctx.fillText('Signature', x + sigWidth / 2, y + sigHeight / 2 + 5);
 

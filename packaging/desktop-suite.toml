@@ -1,0 +1,72 @@
+schema_version = 1
+project_root = ".."
+
+[product]
+name = "Chwezi Document Suite"
+slug = "chwezi-document-suite"
+version = "0.2.0"
+publisher = "Chwezi Core Systems"
+app_id = "{7DAE3891-9E59-42EE-B6D3-B968C4D12C02}"
+launcher_executable = "ChweziDocumentSuite"
+launcher_script = "index-app.py"
+audience = "external"
+license_file = "LICENSE"
+notices_file = "THIRD_PARTY_NOTICES.md"
+icon = ""
+
+[build]
+python_version = "3.12"
+generated_dir = "packaging/generated"
+work_dir = "build/desktop-suite"
+dist_dir = "release"
+portable_zip = true
+installer = true
+signing_required = true
+paths = [".", "src"]
+hidden_imports = []
+collect_all = ["customtkinter"]
+quality_commands = [["uv", "run", "--locked", "python", "-m", "pytest"]]
+
+[ci]
+enabled = true
+workflow_path = ".github/workflows/windows-desktop-suite.yml"
+uv_sync_args = ["sync", "--locked", "--extra", "suite", "--extra", "test", "--group", "desktop-build"]
+
+[[applications]]
+id = "organizer"
+display_name = "PDF Organizer"
+description = "Categorize and manage PDF libraries in a local browser workspace."
+script = "web_interface.py"
+executable = "ChweziOrganizer"
+console = false
+smoke_args = []
+
+[[applications]]
+id = "signer"
+display_name = "PDF Signer"
+description = "Place visual signatures on one PDF or a whole folder."
+script = "pdf_signature.py"
+executable = "ChweziSigner"
+console = false
+smoke_args = []
+
+[[applications]]
+id = "markdown"
+display_name = "Documents to Markdown"
+description = "Extract structured Markdown from common document formats."
+script = "documents_to_markdown.py"
+executable = "ChweziMarkdown"
+console = false
+smoke_args = []
+
+[[data]]
+source = "templates"
+destination = "templates"
+
+[[data]]
+source = "static"
+destination = "static"
+
+[[data]]
+source = "category_template.json"
+destination = "."

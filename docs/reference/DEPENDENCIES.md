@@ -7,13 +7,14 @@ Registry metadata checked: PyPI on 2026-07-14
 
 Core remains small. A dependency enters core only if it is required for imports, typed contracts or the principal CLI. Desktop, web, OCR, office, cloud AI and advanced converters are extras. Runtime code never invokes a package installer.
 
-## Proposed groups
+## Dependency groups
 
 | Group | Candidate packages | Behaviour when absent |
 |---|---|---|
 | core | `typer`, `pypdf` | CLI/API core unavailable only if installation is incomplete |
 | extract | `pdfplumber`, `python-pptx`, `Pillow` | affected conversion routes report missing capability |
-| desktop | `PySide6` | `chwezi desktop` unavailable; CLI/SDK continue |
+| suite | `CustomTkinter`, Flask, extraction/signing libraries and optional cloud SDKs used by the transitional apps | individual tools report missing capabilities in source checkouts; the Windows suite contains the locked runtime |
+| future desktop | `PySide6` | proposed replacement workspace; CLI/SDK continue when absent |
 | web | `fastapi`, ASGI server selected later | local web unavailable; other interfaces continue |
 | ocr | `ocrmypdf` | OCR routes unavailable; born-digital extraction continues |
 | office | no Python requirement for LibreOffice adapter; optional `pywin32` on Windows | legacy Office routes report required executable/platform |
@@ -33,10 +34,13 @@ Core remains small. A dependency enters core only if it is required for imports,
 | PyMuPDF | rendering and optional stamping | AGPL-3.0 or commercial per PyPI | do not bundle until ADR/licence decision |
 | Flask/flask-cors | current web prototype | BSD-3-Clause/MIT | remove when FastAPI adapter replaces prototype |
 | watchdog | watch events | Apache-2.0 | watch extra |
-| CustomTkinter | current launcher | CC0-1.0 | retire after PySide6 migration |
+| CustomTkinter | current launcher and maintained transitional GUIs | CC0-1.0 | retain for the packaged transitional suite; reassess during PySide6 migration |
 | cloud SDKs | optional remote classification | MIT/Apache-2.0 | AI extra only; disabled by default |
 
-Version strings above are not pins. A lock file and compatibility CI must establish the release set.
+`uv.lock` is the reproducible dependency set for source tests and the Windows desktop suite. The
+`suite` optional extra contains the transitional application runtime, while the
+`desktop-build` dependency group contains PyInstaller. The generated build script runs
+`uv sync --locked` and refuses a stale packaging manifest before it builds.
 
 ## Candidate review
 
@@ -72,7 +76,7 @@ Version strings above are not pins. A lock file and compatibility CI must establ
 
 ## Release gates
 
-- lock and hash the supported dependency set;
+- keep `uv.lock` synchronized with `pyproject.toml` and build with `uv sync --locked`;
 - run `pip-audit` and resolve or document every finding;
 - record licence/source/binary redistribution obligations in `THIRD_PARTY_NOTICES.md`;
 - test a clean core install and every supported extra independently;

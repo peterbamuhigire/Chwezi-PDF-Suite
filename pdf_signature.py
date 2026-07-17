@@ -601,7 +601,7 @@ class PDFSignature:
             json.dump(log_data, f, indent=2)
 
 
-def main():
+def _legacy_main():
     """Launch the tkinter GUI for signing PDFs."""
     import sys
     import threading
@@ -965,6 +965,21 @@ def check_dependencies():
         missing.append('pypdf')
 
     return missing
+
+
+def main():
+    """Launch the maintained themed signing interface."""
+    import sys
+
+    missing = check_dependencies()
+    if missing:
+        print(f"ERROR: Missing dependencies: {', '.join(missing)}")
+        print(f"Install with: pip install {' '.join(missing)}")
+        sys.exit(1)
+
+    from signature_gui import launch_signature_gui
+
+    launch_signature_gui(PDFSignature)
 
 
 if __name__ == '__main__':

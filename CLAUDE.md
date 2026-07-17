@@ -216,6 +216,20 @@ python diagnose.py
 python setup.py
 ```
 
+### Windows desktop suite
+
+The canonical package definition is `packaging/desktop-suite.toml`. Regenerate checked-in build
+files after changing it, then build only from the lock file:
+
+```powershell
+python C:\Users\Peter\.claude\skills\skills\languages\python-modern-standards\scripts\desktop_suite_packager.py generate --config packaging\desktop-suite.toml
+.\scripts\build-desktop-suite.ps1 -UnsignedDevelopmentBuild -SkipInstaller
+```
+
+The frozen launcher opens sibling executables; source mode opens sibling Python scripts. Public
+builds must omit `-UnsignedDevelopmentBuild` and satisfy the licence, Authenticode, and Inno Setup
+gates described in `docs/guides/DESKTOP_DISTRIBUTION.md`.
+
 ### Usage
 
 ```bash

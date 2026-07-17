@@ -551,7 +551,8 @@ def main():
     threading.Thread(target=open_browser, daemon=True).start()
 
     # Run Flask app
-    app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=False)
+    # This adapter is intentionally local-only. It has no remote authentication boundary.
+    app.run(debug=False, host='127.0.0.1', port=5000, use_reloader=False)
 
 
 if __name__ == '__main__':

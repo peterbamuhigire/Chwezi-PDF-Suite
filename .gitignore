@@ -8,4 +8,6 @@ _tmp_*
 .ruff_cache/
 build/
 dist/
+release/
+.venv/
 *.egg-info/

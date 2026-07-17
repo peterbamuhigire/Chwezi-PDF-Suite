@@ -1,214 +1,252 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""Chwezi Document Suite central launcher."""
+"""Chwezi Document Suite launcher for source and frozen installations."""
+
+from __future__ import annotations
 
 import subprocess
 import sys
 import threading
-import webbrowser
 import time
+import urllib.error
+import urllib.request
+import webbrowser
 from pathlib import Path
+from tkinter import messagebox
 
 import customtkinter as ctk
 
+from ui_theme import BODY_FONT, DISPLAY_FONT, colour, load_theme, save_theme
 from window_geometry import centered_geometry
 
-HERE = Path(__file__).parent
-
-# ── Appearance ────────────────────────────────────────────────────────────────
-ctk.set_appearance_mode("dark")
+SOURCE_DIR = Path(__file__).resolve().parent
+INITIAL_THEME = load_theme()
+ctk.set_appearance_mode(INITIAL_THEME)
 ctk.set_default_color_theme("blue")
-
-# ── Colour palette ────────────────────────────────────────────────────────────
-BG_MAIN   = "#1a1a2e"
-BG_CARD   = "#16213e"
-BG_HOVER  = "#0f3460"
-ACCENT    = "#e94560"
-TEXT_PRI  = "#eaeaea"
-TEXT_SEC  = "#8892a4"
-GREEN     = "#4caf50"
-GRAY      = "#555f6e"
 
 TOOLS = [
     {
-        "id":          "web",
-        "title":       "PDF Organizer",
-        "description": "AI-powered PDF categorization\nwith batch processing",
-        "icon":        "📂",
-        "script":      "web_interface.py",
-        "url":         "http://localhost:5000",
-        "terminal":    False,
+        "id": "organizer",
+        "code": "ORG",
+        "eyebrow": "LIBRARY WORKFLOW",
+        "title": "PDF Organizer",
+        "description": (
+            "Review, categorize, and move PDF collections from a local browser workspace."
+        ),
+        "script": "web_interface.py",
+        "executable": "ChweziOrganizer",
+        "url": "http://127.0.0.1:5000",
+        "args": [],
     },
     {
-        "id":          "sign",
-        "title":       "PDF Signer",
-        "description": "Add PNG signatures to PDFs\nwith full layout control",
-        "icon":        "✍",
-        "script":      "sign_setup.py",
-        "terminal":    True,
+        "id": "signer",
+        "code": "SIGN",
+        "eyebrow": "PDF FINISHING",
+        "title": "PDF Signer",
+        "description": (
+            "Place a PNG signature with precise page, position, scale, and opacity controls."
+        ),
+        "script": "pdf_signature.py",
+        "executable": "ChweziSigner",
+        "args": [],
     },
     {
-        "id":          "documents_markdown",
-        "title":       "Documents to Markdown",
-        "description": "Convert PDF, Word, EPUB, and PPTX\ninto structured Markdown files",
-        "icon":        "📘",
-        "script":      "documents_to_markdown.py",
-        "args":        ["--gui"],
-        "terminal":    False,
+        "id": "converter",
+        "code": "MD",
+        "eyebrow": "CONTENT EXTRACTION",
+        "title": "Documents to Markdown",
+        "description": "Turn PDF, Word, EPUB, and PowerPoint files into structured Markdown.",
+        "script": "documents_to_markdown.py",
+        "executable": "ChweziMarkdown",
+        "args": ["--gui"],
     },
 ]
 
 
-class ToolCard(ctk.CTkFrame):
-    """One card per tool with live status badge and launch/stop controls."""
+def is_frozen() -> bool:
+    return bool(getattr(sys, "frozen", False))
 
-    def __init__(self, master, tool: dict, **kwargs):
-        super().__init__(master, corner_radius=16, fg_color=BG_CARD, **kwargs)
+
+def installed_directory() -> Path:
+    """Return the folder containing installed sibling executables."""
+
+    if is_frozen():
+        return Path(sys.executable).resolve().parent
+    return SOURCE_DIR
+
+
+def command_for(tool: dict[str, object]) -> list[str]:
+    args = [str(value) for value in tool.get("args", [])]
+    if is_frozen():
+        suffix = ".exe" if sys.platform == "win32" else ""
+        target = installed_directory() / f"{tool['executable']}{suffix}"
+        return [str(target), *args]
+    return [sys.executable, str(SOURCE_DIR / str(tool["script"])), *args]
+
+
+class ToolCard(ctk.CTkFrame):
+    """A themed suite card with process-aware launch state."""
+
+    def __init__(self, master, tool: dict[str, object], **kwargs):
+        super().__init__(
+            master,
+            corner_radius=18,
+            fg_color=colour("surface_raised"),
+            border_width=1,
+            border_color=colour("border"),
+            **kwargs,
+        )
         self.tool = tool
         self.process: subprocess.Popen | None = None
-        self._monitor_thread: threading.Thread | None = None
-
         self._build()
-        self._update_status(running=False)
+        self._update_status(False)
 
-    # ── Layout ────────────────────────────────────────────────────────────────
+    def _build(self) -> None:
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(3, weight=1)
 
-    def _build(self):
-        self.columnconfigure(0, weight=1)
+        top = ctk.CTkFrame(self, fg_color="transparent")
+        top.grid(row=0, column=0, sticky="ew", padx=20, pady=(20, 0))
+        top.grid_columnconfigure(1, weight=1)
 
-        # Icon
         ctk.CTkLabel(
-            self, text=self.tool["icon"],
-            font=ctk.CTkFont(size=48),
-            text_color=TEXT_PRI,
-        ).grid(row=0, column=0, pady=(22, 4))
-
-        # Title
-        ctk.CTkLabel(
-            self, text=self.tool["title"],
-            font=ctk.CTkFont(size=16, weight="bold"),
-            text_color=TEXT_PRI,
-        ).grid(row=1, column=0, padx=20)
-
-        # Description
-        ctk.CTkLabel(
-            self, text=self.tool["description"],
-            font=ctk.CTkFont(size=12),
-            text_color=TEXT_SEC,
-            justify="center",
-        ).grid(row=2, column=0, padx=20, pady=(4, 14))
-
-        # Status badge
-        self.status_badge = ctk.CTkLabel(
-            self, text="",
-            font=ctk.CTkFont(size=11, weight="bold"),
-            corner_radius=8,
-            width=90, height=22,
-        )
-        self.status_badge.grid(row=3, column=0, pady=(0, 12))
-
-        # Launch button
-        self.launch_btn = ctk.CTkButton(
-            self, text="Launch",
-            width=140, height=38,
+            top,
+            text=str(self.tool["code"]),
+            width=52,
+            height=36,
             corner_radius=10,
-            font=ctk.CTkFont(size=13, weight="bold"),
-            fg_color=ACCENT, hover_color="#c73652",
+            fg_color=colour("accent_soft"),
+            text_color=colour("accent"),
+            font=ctk.CTkFont(family=BODY_FONT, size=11, weight="bold"),
+        ).grid(row=0, column=0, sticky="w")
+        ctk.CTkLabel(
+            top,
+            text=str(self.tool["eyebrow"]),
+            text_color=colour("text_muted"),
+            font=ctk.CTkFont(family=BODY_FONT, size=10, weight="bold"),
+        ).grid(row=0, column=1, sticky="e")
+
+        ctk.CTkLabel(
+            self,
+            text=str(self.tool["title"]),
+            anchor="w",
+            text_color=colour("text_primary"),
+            font=ctk.CTkFont(family=DISPLAY_FONT, size=20, weight="bold"),
+        ).grid(row=1, column=0, sticky="ew", padx=20, pady=(22, 6))
+
+        ctk.CTkLabel(
+            self,
+            text=str(self.tool["description"]),
+            anchor="nw",
+            justify="left",
+            wraplength=205,
+            text_color=colour("text_muted"),
+            font=ctk.CTkFont(family=BODY_FONT, size=12),
+        ).grid(row=2, column=0, sticky="new", padx=20)
+
+        footer = ctk.CTkFrame(self, fg_color="transparent")
+        footer.grid(row=4, column=0, sticky="ew", padx=20, pady=(22, 20))
+        footer.grid_columnconfigure(0, weight=1)
+
+        self.status_badge = ctk.CTkLabel(
+            footer,
+            text="",
+            height=30,
+            corner_radius=9,
+            font=ctk.CTkFont(family=BODY_FONT, size=10, weight="bold"),
+        )
+        self.status_badge.grid(row=0, column=0, sticky="w")
+
+        self.launch_btn = ctk.CTkButton(
+            footer,
+            text="Open tool",
+            width=104,
+            height=38,
+            corner_radius=10,
+            fg_color=colour("accent"),
+            hover_color=colour("accent_hover"),
+            text_color=colour("accent_text"),
+            font=ctk.CTkFont(family=BODY_FONT, size=11, weight="bold"),
             command=self._on_launch,
         )
-        self.launch_btn.grid(row=4, column=0, pady=(0, 22))
+        self.launch_btn.grid(row=0, column=1, sticky="e")
 
-    # ── State helpers ─────────────────────────────────────────────────────────
-
-    def _update_status(self, running: bool):
+    def _update_status(self, running: bool) -> None:
         if running:
             self.status_badge.configure(
-                text="● Running",
-                text_color=GREEN,
-                fg_color="#1e3a1e",
+                text="  RUNNING  ",
+                text_color=colour("success"),
+                fg_color=colour("success_soft"),
             )
-            self.launch_btn.configure(text="Open", fg_color="#1565c0", hover_color="#0d47a1")
+            self.launch_btn.configure(text="Open again" if self.tool.get("url") else "Running")
         else:
             self.status_badge.configure(
-                text="○ Stopped",
-                text_color=GRAY,
-                fg_color="#2a2a2a",
+                text="  READY  ",
+                text_color=colour("text_muted"),
+                fg_color=colour("surface_sunken"),
             )
-            self.launch_btn.configure(text="Launch", fg_color=ACCENT, hover_color="#c73652")
+            self.launch_btn.configure(text="Open tool", state="normal")
 
     def _is_running(self) -> bool:
         return self.process is not None and self.process.poll() is None
 
-    # ── Actions ───────────────────────────────────────────────────────────────
-
-    def _on_launch(self):
+    def _on_launch(self) -> None:
         if self._is_running():
-            self._bring_to_front()
+            url = self.tool.get("url")
+            if url:
+                webbrowser.open(str(url))
             return
         self._launch()
 
-    def _launch(self):
-        script = HERE / self.tool["script"]
-        args = self.tool.get("args", [])
-
-        if self.tool.get("terminal"):
-            self._launch_terminal(script)
-        else:
-            cmd = [sys.executable, str(script)] + args
-            self.process = subprocess.Popen(
-                cmd,
-                cwd=str(HERE),
-                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+    def _launch(self) -> None:
+        command = command_for(self.tool)
+        target = Path(command[0])
+        if is_frozen() and not target.is_file():
+            messagebox.showerror(
+                "Tool not installed",
+                f"The installed tool is missing:\n\n{target}\n\nReinstall the suite to repair it.",
             )
+            return
+        try:
+            self.process = subprocess.Popen(  # noqa: S603 - command targets declared suite apps.
+                command,
+                cwd=str(installed_directory()),
+                shell=False,
+                creationflags=(
+                    subprocess.CREATE_NO_WINDOW
+                    if sys.platform == "win32"
+                    else 0
+                ),
+            )
+        except OSError as exc:
+            messagebox.showerror(
+                "Could not open tool",
+                f"{self.tool['title']} could not start.\n\n{exc}",
+            )
+            return
 
-        self._update_status(running=True)
-        self._start_monitor()
-
+        self._update_status(True)
+        if not self.tool.get("url"):
+            self.launch_btn.configure(state="disabled")
+        threading.Thread(target=self._monitor, daemon=True).start()
         url = self.tool.get("url")
         if url:
-            threading.Thread(target=self._open_url_delayed, args=(url,), daemon=True).start()
+            threading.Thread(target=self._open_when_ready, args=(str(url),), daemon=True).start()
 
-    def _launch_terminal(self, script: Path):
-        title = self.tool["title"]
-        py = sys.executable
-        if sys.platform == "win32":
-            self.process = subprocess.Popen(
-                f'start "{title}" cmd /k ""{py}" "{script}""',
-                shell=True,
-                cwd=str(HERE),
-            )
-        elif sys.platform == "darwin":
-            self.process = subprocess.Popen(
-                ["osascript", "-e",
-                 f'tell application "Terminal" to do script "cd {HERE} && {py} {script}"'],
-                cwd=str(HERE),
-            )
-        else:
-            for term in ("x-terminal-emulator", "gnome-terminal", "xterm"):
-                if subprocess.run(["which", term], capture_output=True).returncode == 0:
-                    self.process = subprocess.Popen(
-                        [term, "-e", f"{py} {script}"],
-                        cwd=str(HERE),
-                    )
-                    break
+    def _open_when_ready(self, url: str) -> None:
+        if not url.startswith("http://127.0.0.1:"):
+            return
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline and self._is_running():
+            try:
+                with urllib.request.urlopen(url, timeout=0.8):  # noqa: S310 - localhost only.
+                    webbrowser.open(url)
+                    return
+            except (urllib.error.URLError, TimeoutError, OSError):
+                time.sleep(0.35)
 
-    def _open_url_delayed(self, url: str, delay: float = 2.5):
-        time.sleep(delay)
-        webbrowser.open(url)
-
-    def _bring_to_front(self):
-        url = self.tool.get("url")
-        if url:
-            webbrowser.open(url)
-
-    def _start_monitor(self):
-        self._monitor_thread = threading.Thread(target=self._monitor, daemon=True)
-        self._monitor_thread.start()
-
-    def _monitor(self):
-        """Poll process until it exits, then update UI on the main thread."""
+    def _monitor(self) -> None:
         while self._is_running():
-            time.sleep(1)
+            time.sleep(0.8)
         self.after(0, self._update_status, False)
 
 
@@ -223,81 +261,110 @@ class App(ctk.CTk):
         self._center()
         self.after_idle(self._show)
 
-    def _build(self):
-        self.configure(fg_color=BG_MAIN)
+    def _build(self) -> None:
+        self.configure(fg_color=colour("surface_base"))
+        shell = ctk.CTkFrame(self, fg_color="transparent")
+        shell.pack(fill="both", expand=True, padx=34, pady=30)
 
-        # ── Header ────────────────────────────────────────────────────────────
-        header = ctk.CTkFrame(self, fg_color="transparent")
-        header.pack(fill="x", padx=30, pady=(28, 0))
-
+        header = ctk.CTkFrame(shell, fg_color="transparent")
+        header.pack(fill="x")
         ctk.CTkLabel(
             header,
-            text="Chwezi Document Suite",
-            font=ctk.CTkFont(size=26, weight="bold"),
-            text_color=TEXT_PRI,
-        ).pack(side="left")
+            text="PRIVATE · LOCAL · MODULAR",
+            text_color=colour("accent"),
+            font=ctk.CTkFont(family=BODY_FONT, size=10, weight="bold"),
+        ).pack(anchor="w")
 
+        title_row = ctk.CTkFrame(header, fg_color="transparent")
+        title_row.pack(fill="x", pady=(7, 0))
+        ctk.CTkLabel(
+            title_row,
+            text="Chwezi Document Suite",
+            text_color=colour("text_primary"),
+            font=ctk.CTkFont(family=DISPLAY_FONT, size=30, weight="bold"),
+        ).pack(side="left")
         self.theme_btn = ctk.CTkButton(
-            header,
-            text="☀ Light",
-            width=90, height=30,
-            corner_radius=8,
-            font=ctk.CTkFont(size=12),
-            fg_color="#2a2a4a", hover_color=BG_HOVER,
+            title_row,
+            text="",
+            width=110,
+            height=36,
+            corner_radius=10,
+            fg_color=colour("surface_raised"),
+            hover_color=colour("surface_hover"),
+            border_width=1,
+            border_color=colour("border"),
+            text_color=colour("text_primary"),
+            font=ctk.CTkFont(family=BODY_FONT, size=11, weight="bold"),
             command=self._toggle_theme,
         )
         self.theme_btn.pack(side="right")
+        self._sync_theme_button()
 
-        # ── Subtitle ──────────────────────────────────────────────────────────
         ctk.CTkLabel(
-            self,
-            text="Select a tool to launch",
-            font=ctk.CTkFont(size=13),
-            text_color=TEXT_SEC,
-        ).pack(padx=30, pady=(6, 20))
+            header,
+            text="One calm workspace for organizing, signing, and extracting documents.",
+            text_color=colour("text_muted"),
+            font=ctk.CTkFont(family=BODY_FONT, size=13),
+        ).pack(anchor="w", pady=(7, 0))
 
-        # ── Tool cards ────────────────────────────────────────────────────────
-        cards_frame = ctk.CTkFrame(self, fg_color="transparent")
-        cards_frame.pack(padx=30, pady=(0, 28))
+        rule = ctk.CTkFrame(shell, height=1, fg_color=colour("border"))
+        rule.pack(fill="x", pady=(24, 22))
 
-        for col, tool in enumerate(TOOLS):
-            card = ToolCard(cards_frame, tool, width=200)
-            card.grid(row=0, column=col, padx=8, pady=0, sticky="nsew")
-            cards_frame.columnconfigure(col, weight=1)
+        cards = ctk.CTkFrame(shell, fg_color="transparent")
+        cards.pack(fill="x")
+        for column, tool in enumerate(TOOLS):
+            cards.grid_columnconfigure(column, weight=1, uniform="tools")
+            ToolCard(cards, tool, width=245, height=300).grid(
+                row=0,
+                column=column,
+                padx=(0 if column == 0 else 8, 0 if column == 2 else 8),
+                sticky="nsew",
+            )
 
-        # ── Footer ────────────────────────────────────────────────────────────
+        footer = ctk.CTkFrame(shell, fg_color="transparent")
+        footer.pack(fill="x", pady=(20, 0))
         ctk.CTkLabel(
-            self,
-            text="Chwezi Document Suite  •  All tools run locally",
-            font=ctk.CTkFont(size=10),
-            text_color=GRAY,
-        ).pack(pady=(0, 16))
+            footer,
+            text="Files stay on this computer unless you explicitly use an AI provider.",
+            text_color=colour("text_muted"),
+            font=ctk.CTkFont(family=BODY_FONT, size=10),
+        ).pack(side="left")
+        ctk.CTkLabel(
+            footer,
+            text="SUITE 0.2",
+            text_color=colour("text_muted"),
+            font=ctk.CTkFont(family=BODY_FONT, size=9, weight="bold"),
+        ).pack(side="right")
 
-    def _center(self):
+    def _center(self) -> None:
         width = max(self.winfo_reqwidth(), self.winfo_width())
         height = max(self.winfo_reqheight(), self.winfo_height())
-        screen_width = self.winfo_screenwidth()
-        screen_height = self.winfo_screenheight()
-        self.geometry(centered_geometry(width, height, screen_width, screen_height))
+        self.geometry(
+            centered_geometry(
+                width,
+                height,
+                self.winfo_screenwidth(),
+                self.winfo_screenheight(),
+            )
+        )
 
-    def _show(self):
-        """Map the launcher after Tk's event loop starts and raise it once."""
+    def _show(self) -> None:
         self.deiconify()
         self.lift()
         self.attributes("-topmost", True)
         self.focus_force()
         self.after(250, lambda: self.attributes("-topmost", False))
 
-    def _toggle_theme(self):
-        current = ctk.get_appearance_mode()
-        if current == "Dark":
-            ctk.set_appearance_mode("light")
-            self.theme_btn.configure(text="🌙 Dark")
-        else:
-            ctk.set_appearance_mode("dark")
-            self.theme_btn.configure(text="☀ Light")
+    def _sync_theme_button(self) -> None:
+        mode = ctk.get_appearance_mode().casefold()
+        self.theme_btn.configure(text="Light mode" if mode == "dark" else "Dark mode")
+
+    def _toggle_theme(self) -> None:
+        next_mode = "light" if ctk.get_appearance_mode() == "Dark" else "dark"
+        ctk.set_appearance_mode(next_mode)
+        save_theme(next_mode)
+        self._sync_theme_button()
 
 
 if __name__ == "__main__":
-    app = App()
-    app.mainloop()
+    App().mainloop()

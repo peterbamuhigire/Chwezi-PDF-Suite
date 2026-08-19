@@ -52,7 +52,7 @@ launcher_exe = EXE(
 )
 
 app_0_a = Analysis(
-    [str(PROJECT_ROOT / 'web_interface.py')],
+    [str(PROJECT_ROOT / 'organize_batch.py')],
     pathex=[str(path) for path in project_paths],
     binaries=[],
     datas=[],

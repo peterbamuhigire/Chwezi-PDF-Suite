@@ -78,6 +78,18 @@ def test_source_launcher_uses_python_entry_script(monkeypatch) -> None:
     assert command[2:] == ["--gui"]
 
 
+def test_organizer_launcher_uses_the_batch_organizer(monkeypatch) -> None:
+    launcher = _load_launcher()
+    monkeypatch.delattr(sys, "frozen", raising=False)
+    monkeypatch.setattr(sys, "executable", r"C:\Python312\python.exe")
+
+    command = launcher.command_for(launcher.TOOLS[0])
+
+    assert command[0] == r"C:\Python312\python.exe"
+    assert command[1].endswith("organize_batch.py")
+    assert "url" not in launcher.TOOLS[0]
+
+
 def test_icon_catalog_paint_references_are_resolved() -> None:
     svg_paths = sorted(ICON_ROOT.glob("*/*.svg"))
 
@@ -130,6 +142,18 @@ def test_manifest_and_pyinstaller_spec_use_distinct_app_icons() -> None:
             rf"name='{escaped_executable}'.+?icon=str\(PROJECT_ROOT / '{escaped_icon}'\)"
         )
         assert re.search(block_pattern, spec_text, flags=re.DOTALL), executable
+
+
+def test_desktop_suite_manifest_uses_the_batch_organizer() -> None:
+    manifest_path = PROJECT_ROOT / "packaging" / "desktop-suite.toml"
+    manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
+    organizer = next(app for app in manifest["applications"] if app["id"] == "organizer")
+
+    assert organizer["script"] == "organize_batch.py"
+
+    spec_path = PROJECT_ROOT / "packaging" / "generated" / "chwezi-document-suite.spec"
+    spec_text = spec_path.read_text(encoding="utf-8")
+    assert "[str(PROJECT_ROOT / 'organize_batch.py')]" in spec_text
 
 
 def test_icon_source_rejects_path_traversal() -> None:

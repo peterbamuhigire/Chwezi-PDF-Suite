@@ -35,8 +35,8 @@ uv_sync_args = ["sync", "--locked", "--extra", "suite", "--extra", "test", "--gr
 [[applications]]
 id = "organizer"
 display_name = "PDF Organizer"
-description = "Categorize and manage PDF libraries in a local browser workspace."
-script = "web_interface.py"
+description = "Categorize and manage PDF libraries with the batch organizer desktop app."
+script = "organize_batch.py"
 executable = "ChweziOrganizer"
 icon = "static/icons/apps/app-pdf-organizer.ico"
 console = false

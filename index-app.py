@@ -32,11 +32,10 @@ TOOLS = [
         "eyebrow": "LIBRARY WORKFLOW",
         "title": "PDF Organizer",
         "description": (
-            "Review, categorize, and move PDF collections from a local browser workspace."
+            "Review, categorize, and move PDF collections in the dedicated batch organizer."
         ),
-        "script": "web_interface.py",
+        "script": "organize_batch.py",
         "executable": "ChweziOrganizer",
-        "url": "http://127.0.0.1:5000",
         "args": [],
     },
     {

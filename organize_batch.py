@@ -516,13 +516,16 @@ def launch_gui():
     import tkinter as tk
     from tkinter import filedialog, messagebox, scrolledtext, ttk
 
+    from ui_theme import apply_ttk_theme, load_theme, save_theme, style_text_widget
+
     settings_file = Path.home() / ".pdf_organizer_settings.json"
 
     class OrganizerGUI:
         def __init__(self, root):
             self.root = root
             self.root.title("PDF Organizer")
-            self.root.geometry("860x720")
+            self.root.geometry("960x760")
+            self.root.minsize(840, 640)
 
             self.downloads_path = tk.StringVar(value=str(Path.home() / "Downloads"))
             self.ebooks_path = tk.StringVar()
@@ -535,40 +538,47 @@ def launch_gui():
             self.progress_value = tk.DoubleVar(value=0.0)
             self.log_queue = Queue()
             self.worker = None
+            self.theme_mode = load_theme()
 
             self._load_settings()
+            self.palette = apply_ttk_theme(self.root, self.theme_mode)
             self._build()
             self.root.after(100, self._drain_queue)
 
         def _build(self):
-            pad = dict(padx=8, pady=4)
+            outer_pad = dict(padx=22, pady=10)
+            card_pad = dict(padx=0, pady=8)
 
-            main = ttk.Frame(self.root, padding=8)
+            main = ttk.Frame(self.root, padding=(22, 18), style="App.TFrame")
             main.grid(row=0, column=0, sticky="nsew")
             self.root.columnconfigure(0, weight=1)
             self.root.rowconfigure(0, weight=1)
-            main.columnconfigure(1, weight=1)
-            main.rowconfigure(4, weight=1)
+            main.columnconfigure(0, weight=1)
+            main.rowconfigure(5, weight=1)
 
-            ttk.Label(main, text="PDF Organizer", font=("Segoe UI", 16, "bold")).grid(
-                row=0, column=0, columnspan=3, sticky="w", **pad
-            )
+            hero = ttk.Frame(main, padding=(18, 16), style="Card.TFrame")
+            hero.grid(row=0, column=0, sticky="ew", **card_pad)
+            hero.columnconfigure(0, weight=1)
+            ttk.Label(hero, text="PDF Organizer", style="Title.TLabel").grid(row=0, column=0, sticky="w")
             ttk.Label(
-                main,
-                text="Batch organizer with one real backend, GUI-first workflow, and cost-effective AI categorization.",
-                foreground="#555",
-            ).grid(row=1, column=0, columnspan=3, sticky="w", **pad)
+                hero,
+                text="Sort a folder of PDFs in batches. Start with a dry run to inspect the proposed categories before any file is moved.",
+                style="Muted.TLabel",
+                wraplength=650,
+            ).grid(row=1, column=0, sticky="w", pady=(5, 0))
+            self.status_badge = ttk.Label(hero, textvariable=self.status_text, style="Status.TLabel")
+            self.status_badge.grid(row=0, column=1, rowspan=2, sticky="e", padx=(18, 0))
 
-            files = ttk.LabelFrame(main, text="Files", padding=6)
-            files.grid(row=2, column=0, columnspan=3, sticky="ew", **pad)
+            files = ttk.LabelFrame(main, text="Folders and category template", padding=14, style="Card.TLabelframe")
+            files.grid(row=1, column=0, sticky="ew", **card_pad)
             files.columnconfigure(1, weight=1)
 
             self._file_row(files, 0, "Downloads folder:", self.downloads_path, self._browse_downloads)
             self._file_row(files, 1, "Ebooks folder:", self.ebooks_path, self._browse_ebooks)
             self._file_row(files, 2, "Category template:", self.category_template, self._browse_template)
 
-            options = ttk.LabelFrame(main, text="Configuration", padding=6)
-            options.grid(row=3, column=0, columnspan=3, sticky="ew", **pad)
+            options = ttk.LabelFrame(main, text="Categorization settings", padding=14, style="Card.TLabelframe")
+            options.grid(row=2, column=0, sticky="ew", **card_pad)
             options.columnconfigure(1, weight=1)
 
             ttk.Label(options, text="Provider:").grid(row=0, column=0, sticky="w")
@@ -590,6 +600,7 @@ def launch_gui():
                 options,
                 text="Dry run (preview only, do not move files)",
                 variable=self.dry_run,
+                command=self._sync_run_button,
             ).grid(row=2, column=0, columnspan=3, sticky="w", pady=2)
             ttk.Checkbutton(
                 options,
@@ -597,27 +608,36 @@ def launch_gui():
                 variable=self.use_content_analysis,
             ).grid(row=3, column=0, columnspan=3, sticky="w", pady=2)
 
-            actions = ttk.Frame(main)
-            actions.grid(row=4, column=0, columnspan=3, sticky="ew", **pad)
-            ttk.Button(actions, text="Organize PDFs", command=self._run).pack(side="left", padx=4)
-            ttk.Button(actions, text="Save Settings", command=self._save_settings).pack(side="left", padx=4)
-            ttk.Button(actions, text="View Log", command=self._view_log).pack(side="left", padx=4)
+            actions = ttk.Frame(main, style="App.TFrame")
+            actions.grid(row=3, column=0, sticky="ew", pady=(12, 6))
+            self.run_button = ttk.Button(actions, text="Start dry run", command=self._run, style="Primary.TButton")
+            self.run_button.pack(side="left")
+            ttk.Button(actions, text="Save settings", command=self._save_settings).pack(side="left", padx=(8, 0))
+            ttk.Button(actions, text="View organization log", command=self._view_log).pack(side="left", padx=(8, 0))
+            self.theme_button = ttk.Button(actions, command=self._toggle_theme)
+            self.theme_button.pack(side="right")
+            self._sync_run_button()
+            self._sync_theme_button()
 
-            ttk.Label(main, textvariable=self.status_text).grid(row=5, column=0, columnspan=3, sticky="w", **pad)
-            self.progress = ttk.Progressbar(main, maximum=100, variable=self.progress_value)
-            self.progress.grid(row=6, column=0, columnspan=3, sticky="ew", **pad)
+            progress_frame = ttk.Frame(main, style="App.TFrame")
+            progress_frame.grid(row=4, column=0, sticky="ew", **outer_pad)
+            progress_frame.columnconfigure(0, weight=1)
+            ttk.Label(progress_frame, text="Progress", style="Subtitle.TLabel").grid(row=0, column=0, sticky="w")
+            self.progress = ttk.Progressbar(progress_frame, maximum=100, variable=self.progress_value)
+            self.progress.grid(row=1, column=0, sticky="ew", pady=(5, 0))
 
-            log_frame = ttk.LabelFrame(main, text="Activity Log", padding=6)
-            log_frame.grid(row=7, column=0, columnspan=3, sticky="nsew", **pad)
+            log_frame = ttk.LabelFrame(main, text="Activity", padding=14, style="Card.TLabelframe")
+            log_frame.grid(row=5, column=0, sticky="nsew", **card_pad)
             log_frame.columnconfigure(0, weight=1)
             log_frame.rowconfigure(0, weight=1)
-            self.log_text = scrolledtext.ScrolledText(log_frame, height=20, font=("Consolas", 9))
+            self.log_text = scrolledtext.ScrolledText(log_frame, height=18, font=("Cascadia Mono", 9))
             self.log_text.grid(row=0, column=0, sticky="nsew")
+            style_text_widget(self.log_text, self.palette)
 
         def _file_row(self, parent, row, label, variable, command):
-            ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", pady=2)
-            ttk.Entry(parent, textvariable=variable).grid(row=row, column=1, sticky="ew", padx=4, pady=2)
-            ttk.Button(parent, text="Browse", command=command).grid(row=row, column=2, padx=4, pady=2)
+            ttk.Label(parent, text=label, style="Card.TLabel").grid(row=row, column=0, sticky="w", pady=4)
+            ttk.Entry(parent, textvariable=variable).grid(row=row, column=1, sticky="ew", padx=10, pady=4)
+            ttk.Button(parent, text="Browse", command=command).grid(row=row, column=2, pady=4)
 
         def _browse_downloads(self):
             folder = filedialog.askdirectory(title="Select Downloads Folder")
@@ -678,8 +698,10 @@ def launch_gui():
             window = tk.Toplevel(self.root)
             window.title("Organization Log")
             window.geometry("700x480")
+            apply_ttk_theme(window, self.theme_mode)
             text = scrolledtext.ScrolledText(window, font=("Consolas", 9))
             text.pack(fill="both", expand=True, padx=8, pady=8)
+            style_text_widget(text, self.palette)
             with open(log_file, "r", encoding="utf-8") as handle:
                 text.insert("1.0", json.dumps(json.load(handle), indent=2, ensure_ascii=False))
             text.configure(state="disabled")
@@ -690,6 +712,20 @@ def launch_gui():
 
         def _set_status(self, value):
             self.status_text.set(value)
+
+        def _sync_run_button(self):
+            self.run_button.configure(text="Preview organization" if self.dry_run.get() else "Organize PDFs")
+
+        def _sync_theme_button(self):
+            next_theme = "light" if self.theme_mode == "dark" else "dark"
+            self.theme_button.configure(text=f"Use {next_theme} theme")
+
+        def _toggle_theme(self):
+            self.theme_mode = "light" if self.theme_mode == "dark" else "dark"
+            self.palette = apply_ttk_theme(self.root, self.theme_mode)
+            style_text_widget(self.log_text, self.palette)
+            save_theme(self.theme_mode)
+            self._sync_theme_button()
 
         def _set_progress(self, current, total, message):
             percent = 0 if total <= 0 else (current / total) * 100
@@ -704,6 +740,9 @@ def launch_gui():
             if not downloads:
                 messagebox.showerror("Missing", "Please select the Downloads folder.")
                 return
+            if not Path(downloads).is_dir():
+                messagebox.showerror("Folder not found", "The selected Downloads folder does not exist.")
+                return
             if not ebooks:
                 messagebox.showerror("Missing", "Please select the Ebooks folder.")
                 return
@@ -716,6 +755,7 @@ def launch_gui():
             self.log_text.delete("1.0", "end")
             self.progress_value.set(0)
             self._set_status("Starting...")
+            self.run_button.configure(state="disabled")
 
             self.worker = threading.Thread(
                 target=self._run_worker,
@@ -766,6 +806,8 @@ def launch_gui():
                         self._set_progress(*payload)
                     elif kind == "status":
                         self._set_status(payload)
+                        if payload in {"Done", "Failed"}:
+                            self.run_button.configure(state="normal")
                     elif kind == "done":
                         self.progress_value.set(100)
             except Empty:

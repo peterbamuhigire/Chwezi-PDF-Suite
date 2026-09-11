@@ -661,18 +661,27 @@ def launch_gui():
             show = self.api_entry.cget("show")
             self.api_entry.configure(show="" if show == "*" else "*")
 
-        def _save_settings(self):
+        def _save_settings(self, notify=True):
             payload = {
                 "downloads_path": self.downloads_path.get(),
                 "ebooks_path": self.ebooks_path.get(),
                 "provider": self.provider.get(),
+                "api_key": self.api_key.get().strip(),
                 "category_template": self.category_template.get(),
                 "use_content_analysis": self.use_content_analysis.get(),
                 "dry_run": self.dry_run.get(),
             }
-            with open(settings_file, "w", encoding="utf-8") as handle:
-                json.dump(payload, handle, indent=2)
-            messagebox.showinfo("Saved", "Organizer settings saved.")
+            try:
+                with open(settings_file, "w", encoding="utf-8") as handle:
+                    json.dump(payload, handle, indent=2)
+            except OSError:
+                messagebox.showwarning(
+                    "Settings not saved",
+                    "Could not save organizer settings. Your API key will not be remembered.",
+                )
+                return
+            if notify:
+                messagebox.showinfo("Saved", "Organizer settings saved.")
 
         def _load_settings(self):
             if not settings_file.exists():
@@ -683,6 +692,7 @@ def launch_gui():
                 self.downloads_path.set(payload.get("downloads_path", self.downloads_path.get()))
                 self.ebooks_path.set(payload.get("ebooks_path", ""))
                 self.provider.set(payload.get("provider", self.provider.get()))
+                self.api_key.set(payload.get("api_key", ""))
                 self.category_template.set(payload.get("category_template", ""))
                 self.use_content_analysis.set(payload.get("use_content_analysis", True))
                 self.dry_run.set(payload.get("dry_run", True))
@@ -751,6 +761,7 @@ def launch_gui():
                 return
 
             Path(ebooks).mkdir(parents=True, exist_ok=True)
+            self._save_settings(notify=False)
 
             self.log_text.delete("1.0", "end")
             self.progress_value.set(0)

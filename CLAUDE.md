@@ -1,12 +1,12 @@
 # CLAUDE.md
 
-AI coding assistant guidance for pyPDFLibrarianSort project.
+AI coding assistant guidance for the Chwezi Document Suite (repository: Chwezi-PDF-Suite; formerly pyPDFLibrarianSort).
 
 ## Project Overview
 
 **AI-powered PDF library organizer** with three AI provider options (Gemini, Anthropic, DeepSeek), featuring batch processing for 98% cost savings, automated watch mode, modern web interface, and intelligent content analysis.
 
-**Key Innovation**: Batch processing - 200 PDFs in one API call ($0.10) vs individual processing ($10).
+**Key Innovation**: Batch processing - up to 150 PDFs per API call (`DEFAULT_CHUNK_SIZE`) instead of one call per PDF; actual cost depends on the provider's per-token pricing.
 
 ## Documentation Structure
 
@@ -15,10 +15,10 @@ All detailed documentation lives in `docs/` with semantic subdirectories. Root R
 
 ```
 docs/
-â”œâ”€â”€ guides/          # User guides (setup, usage)
-â”œâ”€â”€ features/        # Feature documentation
-â”œâ”€â”€ overview/        # Project summaries
-â””â”€â”€ reference/       # Technical reference
+├── guides/          # User guides (setup, usage)
+├── features/        # Feature documentation
+├── overview/        # Project summaries
+└── reference/       # Technical reference
 ```
 
 ## Available Skills
@@ -36,7 +36,7 @@ The `skills/` directory contains reusable development skills for Claude Code:
 
 ## Core Architecture
 
-### Five Processing Modes
+### Four Processing Modes
 
 **1. Web Interface (`web_interface.py`)** - Recommended for most users
 - Modern Flask-based web UI with drag & drop
@@ -100,7 +100,7 @@ The `skills/` directory contains reusable development skills for Claude Code:
 
 **Support Tools:**
 
-- `test_basic.py` - Diagnostic tests
+- `test_basic.py` - Interactive API smoke check (prompts for provider and key)
 - `test_signature.py` - PDF signature unit tests
 - `setup.py` - Setup wizard
 - `fetch-categories.py` - Category template generator
@@ -151,10 +151,10 @@ To generate from an existing ebooks folder:
 
 ```bash
 cd /path/to/ebooks
-python /path/to/pyPDFLibrarianSort/fetch-categories.py
+python /path/to/Chwezi-PDF-Suite/fetch-categories.py
 ```
 
-Both `PDFOrganizer` and `BatchPDFOrganizer` support `category_template` parameter.
+`BatchPDFOrganizer` supports the `category_template` parameter.
 
 ### Smart Content Analysis
 
@@ -179,26 +179,10 @@ The system includes intelligent gibberish filename detection:
 Input: SAJSABC4345.pdf
 Metadata: "A Study of Eastern Rabbits"
 Content: "This research paper examines behavioral patterns..."
-â†’ Output: Science/Biology/Zoology/A Study of Eastern Rabbits.pdf
+→ Output: Science/Biology/Zoology/A Study of Eastern Rabbits.pdf
 ```
 
 ## Common Commands
-
-### Usage
-
-```bash
-# Web interface (recommended)
-python web_interface.py
-
-# Watch mode (auto-organize)
-python watch_setup.py
-
-# Batch mode (one-time)
-python organize_batch.py
-
-# Organizer
-python organize_batch.py
-```
 
 ### Development
 
@@ -206,7 +190,10 @@ python organize_batch.py
 # Install dependencies
 pip install -r requirements.txt
 
-# Run tests
+# Run the automated test suite (tests/ directory, from repo root)
+python -m pytest
+
+# Interactive API smoke check (prompts for provider/key)
 python test_basic.py
 
 # System diagnostics
@@ -216,13 +203,33 @@ python diagnose.py
 python setup.py
 ```
 
+### Usage
+
+```bash
+# Suite launcher
+python index-app.py
+
+# Web interface (recommended, then open http://localhost:5000)
+python web_interface.py
+
+# Batch mode (one-time organization; GUI / CLI)
+python organize_batch.py
+# Direct invocation
+python organize_batch.py --downloads /path/to/downloads --ebooks /path/to/ebooks --api-key <key>
+
+# Watch mode (continuous auto-organization)
+python watch_setup.py
+# Or directly:
+python watch_organizer.py --ebooks F:/ebooks --provider gemini --api-key YOUR_KEY
+```
+
 ### Windows desktop suite
 
 The canonical package definition is `packaging/desktop-suite.toml`. Regenerate checked-in build
 files after changing it, then build only from the lock file:
 
 ```powershell
-python C:\Users\Peter\.claude\skills\skills\languages\python-modern-standards\scripts\desktop_suite_packager.py generate --config packaging\desktop-suite.toml
+python C:\wamp64\www\chwezi-dev-engine\skills\languages\python-modern-standards\scripts\desktop_suite_packager.py generate --config packaging\desktop-suite.toml
 .\scripts\build-desktop-suite.ps1 -UnsignedDevelopmentBuild -SkipInstaller
 ```
 
@@ -230,38 +237,16 @@ The frozen launcher opens sibling executables; source mode opens sibling Python 
 builds must omit `-UnsignedDevelopmentBuild` and satisfy the licence, Authenticode, and Inno Setup
 gates described in `docs/guides/DESKTOP_DISTRIBUTION.md`.
 
-### Usage
-
-```bash
-# Web Interface (recommended for best user experience) âœ¨ NEW!
-python web_interface.py
-# Then open browser to http://localhost:5000
-
-# Batch mode (recommended for one-time organization)
-python organize_batch.py
-
-# Watch mode (recommended for continuous auto-organization)
-python watch_setup.py
-# Or directly:
-python watch_organizer.py --ebooks F:/ebooks --provider gemini --api-key YOUR_KEY
-
-# Organizer GUI / CLI
-python organize_batch.py
-
-# Direct invocation
-python organize_batch.py --downloads /path/to/downloads --ebooks /path/to/ebooks --api-key <key>
-```
-
 ### Generate category template
 
 ```bash
 # From your ebooks folder
 cd F:/ebooks
-python C:/path/to/pyPDFLibrarianSort/fetch-categories.py
+python C:/path/to/Chwezi-PDF-Suite/fetch-categories.py
 # Creates category_template.json in current directory
 
 # Copy to project root for use by organizers
-copy category_template.json C:/path/to/pyPDFLibrarianSort/
+copy category_template.json C:/path/to/Chwezi-PDF-Suite/
 ```
 
 ## Important Implementation Details
@@ -270,8 +255,10 @@ copy category_template.json C:/path/to/pyPDFLibrarianSort/
 
 - Supports three AI providers: Gemini, Anthropic (Claude), and DeepSeek
 - Interactive launchers prompt for provider selection and corresponding API key
-- Can be passed as parameter: `PDFOrganizer(api_key="...", provider="gemini")`
+- Can be passed as parameter: `BatchPDFOrganizer(downloads, ebooks, api_key="...", provider="gemini")`
 - Can optionally be stored in `~/.pdf_organizer_settings.json` (by setup.py)
+- The web interface never returns the stored key to the browser.
+- Default models: gemini -> `gemini-3.8-flash`, anthropic -> `claude-haiku-5-5`, deepseek -> `deepseek-flash`; override with the `model_name` parameter.
 - Provider-specific API key URLs:
   - Gemini: https://aistudio.google.com/app/apikey
   - Anthropic: https://console.anthropic.com/
@@ -283,7 +270,7 @@ copy category_template.json C:/path/to/pyPDFLibrarianSort/
 - Only filenames and metadata sent to AI provider (Gemini, Anthropic, or DeepSeek)
 - Uses `shutil.move()` for file operations
 - Maintains `organization_log.json` in ebooks folder for tracking
-- Dry-run mode available: `PDFOrganizer(dry_run=True)`
+- Dry-run mode available: `BatchPDFOrganizer(..., dry_run=True)`
 
 ### Category Hierarchy
 
@@ -302,7 +289,10 @@ copy category_template.json C:/path/to/pyPDFLibrarianSort/
 ## Testing
 
 ```bash
-# Run basic diagnostic tests
+# Automated suite (tests/ directory, run from repo root)
+python -m pytest
+
+# Interactive API smoke check (prompts for provider and key)
 python test_basic.py
 
 # Test with dry-run (no files moved)
@@ -311,15 +301,17 @@ python -c "from organize_batch import BatchPDFOrganizer; o = BatchPDFOrganizer('
 
 ## Dependencies
 
-Runtime dependencies (see requirements.txt):
+`pyproject.toml` is the canonical dependency definition (core dependencies plus extras such as `ai`, `sign`, `watch`, `extract`, `suite`). `requirements.txt` is the legacy flat list used by the standalone apps:
 
-- `google-genai>=0.7.2` - Gemini AI API client
-- `anthropic>=0.36.0` - Anthropic (Claude) API client
-- `openai>=1.0.0` - OpenAI-compatible client (for DeepSeek)
-- `pypdf>=3.17.0` - PDF metadata extraction
-- `watchdog>=3.0.0` - File system monitoring (for watch mode)
-- `flask>=3.0.0` - Web framework (for web interface)
-- `flask-cors>=4.0.0` - CORS support (for web interface)
+- `customtkinter>=5.2.0` - desktop GUI
+- `anthropic>=0.36.0` - Anthropic (Claude) client
+- `google-genai>=1.73.1` - Gemini client
+- `pypdf>=6.13.3,<7` - PDF metadata extraction
+- `openai>=1.0.0` - OpenAI-compatible client (DeepSeek)
+- `watchdog>=3.0.0` - file system monitoring (watch mode)
+- `flask>=3.0.0`, `flask-cors>=4.0.0` - web interface
+- `pillow>=12.3,<13`, `reportlab>=4.0.0` - PDF signature tool
+- `python-pptx>=1.0.2`, `pdfplumber>=0.11.0` - document extraction
 
 ## Documentation Maintenance
 
@@ -370,5 +362,5 @@ See `skills/README.md` for complete skill documentation.
 ## Platform Support
 
 - Cross-platform: Windows, macOS, Linux
-- Batch scripts for Windows: `run_gui.bat`, `START_HERE.bat`, etc.
-- Shell scripts for Unix: `run_gui.sh`
+- Windows: `install.ps1` installer and the `python index-app.py` launcher
+- Unix: `install.sh` installer and `run_gui.sh` launcher

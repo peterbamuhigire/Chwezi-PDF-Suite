@@ -7,7 +7,7 @@ Run with: python test_signature.py
 import os
 import sys
 import tempfile
-from pathlib import Path
+from contextlib import suppress
 
 # Fix Windows console encoding issues
 if sys.platform == 'win32':
@@ -22,7 +22,7 @@ except ImportError:
     sys.exit(1)
 
 try:
-    from pypdf import PdfReader, PdfWriter
+    from pypdf import PdfReader
 except ImportError:
     print("ERROR: pypdf not installed. Run: pip install pypdf")
     sys.exit(1)
@@ -52,29 +52,29 @@ def create_test_signature():
                 pixels[x, y] = (0, 0, 255, 200)  # Semi-transparent blue
 
     # Save to temp file
-    temp_sig = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
-    img.save(temp_sig.name, 'PNG')
-    temp_sig.close()
+    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_sig:
+        sig_name = temp_sig.name
+    img.save(sig_name, 'PNG')
 
-    return temp_sig.name
+    return sig_name
 
 
 def create_test_pdf(num_pages=1):
     """Create a test PDF with specified number of pages"""
-    from reportlab.pdfgen import canvas
     from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
 
-    temp_pdf = tempfile.NamedTemporaryFile(suffix='.pdf', delete=False)
-    c = canvas.Canvas(temp_pdf.name, pagesize=letter)
+    with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as temp_pdf:
+        pdf_name = temp_pdf.name
+    c = canvas.Canvas(pdf_name, pagesize=letter)
 
     for i in range(num_pages):
         c.drawString(100, 750, f"Test Page {i + 1}")
         c.showPage()
 
     c.save()
-    temp_pdf.close()
 
-    return temp_pdf.name
+    return pdf_name
 
 
 def test_position_calculation():
@@ -116,10 +116,8 @@ def test_position_calculation():
         return True
 
     finally:
-        try:
+        with suppress(PermissionError):
             os.unlink(sig_path)
-        except PermissionError:
-            pass  # File still in use, will be cleaned up later
 
 
 def test_a4_reference_width_scaling():
@@ -148,10 +146,8 @@ def test_a4_reference_width_scaling():
         return False
 
     finally:
-        try:
+        with suppress(PermissionError, FileNotFoundError):
             os.unlink(sig_path)
-        except (PermissionError, FileNotFoundError):
-            pass
 
 
 def test_page_selection():
@@ -192,10 +188,8 @@ def test_page_selection():
         return True
 
     finally:
-        try:
+        with suppress(PermissionError):
             os.unlink(sig_path)
-        except PermissionError:
-            pass
 
 
 def test_single_pdf_signing():
@@ -229,24 +223,20 @@ def test_single_pdf_signing():
                     os.unlink(output_path)
                     return True
                 else:
-                    print(f"  FAIL Page count mismatch")
+                    print("  FAIL Page count mismatch")
                     return False
             else:
-                print(f"  FAIL Output file not created")
+                print("  FAIL Output file not created")
                 return False
         else:
             print(f"  FAIL Signing failed: {result['error']}")
             return False
 
     finally:
-        try:
+        with suppress(PermissionError, FileNotFoundError):
             os.unlink(sig_path)
-        except (PermissionError, FileNotFoundError):
-            pass
-        try:
+        with suppress(PermissionError, FileNotFoundError):
             os.unlink(pdf_path)
-        except (PermissionError, FileNotFoundError):
-            pass
 
 
 def test_page_filtering():
@@ -268,7 +258,7 @@ def test_page_filtering():
             print(f"  OK First page only: {result['pages_signed']} page signed")
             os.unlink(output_path)
         else:
-            print(f"  FAIL First page test failed")
+            print("  FAIL First page test failed")
             return False
 
         # Test last page only
@@ -280,7 +270,7 @@ def test_page_filtering():
             print(f"  OK Last page only: {result['pages_signed']} page signed")
             os.unlink(output_path)
         else:
-            print(f"  FAIL Last page test failed")
+            print("  FAIL Last page test failed")
             return False
 
         # Test odd pages
@@ -297,14 +287,10 @@ def test_page_filtering():
             return False
 
     finally:
-        try:
+        with suppress(PermissionError, FileNotFoundError):
             os.unlink(sig_path)
-        except (PermissionError, FileNotFoundError):
-            pass
-        try:
+        with suppress(PermissionError, FileNotFoundError):
             os.unlink(pdf_path)
-        except (PermissionError, FileNotFoundError):
-            pass
 
 
 def test_skip_pages():
@@ -348,7 +334,10 @@ def test_skip_pages():
 
         # Odd pages: 1,3,5,7,9 -> Skip 1,5,7 -> Only 3,9 remain
         if result['success'] and result['pages_signed'] == 2:
-            print(f"  OK Skip with page filter: {result['pages_signed']} pages signed (odd except 1,5-7)")
+            print(
+                f"  OK Skip with page filter: {result['pages_signed']} pages signed "
+                "(odd except 1,5-7)"
+            )
             os.unlink(output_path)
             return True
         else:
@@ -356,14 +345,10 @@ def test_skip_pages():
             return False
 
     finally:
-        try:
+        with suppress(PermissionError, FileNotFoundError):
             os.unlink(sig_path)
-        except (PermissionError, FileNotFoundError):
-            pass
-        try:
+        with suppress(PermissionError, FileNotFoundError):
             os.unlink(pdf_path)
-        except (PermissionError, FileNotFoundError):
-            pass
 
 
 def test_opacity_and_rotation():
@@ -387,7 +372,7 @@ def test_opacity_and_rotation():
         result = signer.add_signature_to_pdf(pdf_path, output_path)
 
         if result['success']:
-            print(f"  OK Signed with 50% opacity and 45° rotation")
+            print("  OK Signed with 50% opacity and 45° rotation")
             os.unlink(output_path)
             return True
         else:
@@ -395,14 +380,10 @@ def test_opacity_and_rotation():
             return False
 
     finally:
-        try:
+        with suppress(PermissionError, FileNotFoundError):
             os.unlink(sig_path)
-        except (PermissionError, FileNotFoundError):
-            pass
-        try:
+        with suppress(PermissionError, FileNotFoundError):
             os.unlink(pdf_path)
-        except (PermissionError, FileNotFoundError):
-            pass
 
 
 def test_rotated_page_signature_placement():
@@ -445,7 +426,9 @@ def test_rotated_page_signature_placement():
             signed_page = signed_doc[0]
             visible_rect = signed_page.rect
             expected_width = PDFSignature.A4_PORTRAIT_WIDTH_POINTS * signer.scale
-            expected_height = expected_width * (signer.signature_image.height / signer.signature_image.width)
+            expected_height = expected_width * (
+                signer.signature_image.height / signer.signature_image.width
+            )
             expected_x0 = visible_rect.width - expected_width - signer.x_offset
             expected_y0 = visible_rect.height - expected_height - signer.y_offset
 
@@ -460,7 +443,11 @@ def test_rotated_page_signature_placement():
             hit_samples = hit_pix.samples
             hit_non_white = sum(
                 1 for j in range(0, len(hit_samples), 3)
-                if not (hit_samples[j] > 240 and hit_samples[j + 1] > 240 and hit_samples[j + 2] > 240)
+                if not (
+                    hit_samples[j] > 240
+                    and hit_samples[j + 1] > 240
+                    and hit_samples[j + 2] > 240
+                )
             )
 
             if hit_non_white <= 20:
@@ -481,28 +468,31 @@ def test_rotated_page_signature_placement():
             miss_samples = miss_pix.samples
             miss_non_white = sum(
                 1 for j in range(0, len(miss_samples), 3)
-                if not (miss_samples[j] > 240 and miss_samples[j + 1] > 240 and miss_samples[j + 2] > 240)
+                if not (
+                    miss_samples[j] > 240
+                    and miss_samples[j + 1] > 240
+                    and miss_samples[j + 2] > 240
+                )
             )
 
             if miss_non_white > 20:
                 print("  FAIL Signature content leaked into the visible top-left corner")
                 return False
 
-            print(f"  OK Visible bottom-right placement near ({expected_x0:.1f}, {expected_y0:.1f})")
+            print(
+                "  OK Visible bottom-right placement near "
+                f"({expected_x0:.1f}, {expected_y0:.1f})"
+            )
             return True
         finally:
             signed_doc.close()
 
     finally:
-        try:
+        with suppress(PermissionError, FileNotFoundError):
             os.unlink(sig_path)
-        except (PermissionError, FileNotFoundError):
-            pass
         for path in (pdf_path, rotated_pdf_path, output_path):
-            try:
+            with suppress(PermissionError, FileNotFoundError):
                 os.unlink(path)
-            except (PermissionError, FileNotFoundError):
-                pass
 
 
 def test_batch_processing():
@@ -553,7 +543,7 @@ def test_error_handling():
     try:
         # Test invalid position
         try:
-            signer = PDFSignature(sig_path, position='invalid')
+            PDFSignature(sig_path, position='invalid')
             print("  FAIL Invalid position should raise error")
             return False
         except ValueError:
@@ -561,7 +551,7 @@ def test_error_handling():
 
         # Test invalid scale
         try:
-            signer = PDFSignature(sig_path, scale=1.5)
+            PDFSignature(sig_path, scale=1.5)
             print("  FAIL Invalid scale should raise error")
             return False
         except ValueError:
@@ -569,7 +559,7 @@ def test_error_handling():
 
         # Test invalid opacity
         try:
-            signer = PDFSignature(sig_path, opacity=2.0)
+            PDFSignature(sig_path, opacity=2.0)
             print("  FAIL Invalid opacity should raise error")
             return False
         except ValueError:
@@ -577,7 +567,7 @@ def test_error_handling():
 
         # Test invalid rotation
         try:
-            signer = PDFSignature(sig_path, rotation=400)
+            PDFSignature(sig_path, rotation=400)
             print("  FAIL Invalid rotation should raise error")
             return False
         except ValueError:
@@ -586,10 +576,8 @@ def test_error_handling():
         return True
 
     finally:
-        try:
+        with suppress(PermissionError, FileNotFoundError):
             os.unlink(sig_path)
-        except (PermissionError, FileNotFoundError):
-            pass
 
 
 def main():
@@ -614,7 +602,7 @@ def main():
     passed = 0
     failed = 0
 
-    for name, test_func in tests:
+    for _name, test_func in tests:
         try:
             if test_func():
                 passed += 1

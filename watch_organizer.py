@@ -4,15 +4,15 @@ PDF Organizer - Watch Mode
 Monitors Downloads folder and auto-organizes PDFs as they arrive
 """
 
-import os
 import sys
-import time
 import threading
-from pathlib import Path
+import time
+import types
 from datetime import datetime
-from collections import defaultdict
-from watchdog.observers import Observer
+from pathlib import Path
+
 from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -22,7 +22,8 @@ if hasattr(sys.stderr, "reconfigure"):
 class PDFWatcher(FileSystemEventHandler):
     """Watches for new PDF files and organizes them"""
 
-    def __init__(self, downloads_folder, ebooks_folder, api_key, provider, batch_delay=10):
+    def __init__(self, downloads_folder, ebooks_folder, api_key, provider, batch_delay=10,
+                 content_analysis=False):
         """
         Initialize the PDF watcher
 
@@ -37,12 +38,15 @@ class PDFWatcher(FileSystemEventHandler):
         self.ebooks_folder = Path(ebooks_folder)
         self.api_key = api_key
         self.provider = provider
-        self.batch_delay = batch_delay
+        self.batch_delay = max(1, batch_delay)
+        self.content_analysis = content_analysis
 
         # Track pending PDFs
         self.pending_pdfs = set()
         self.process_timer = None
         self.lock = threading.Lock()
+        # Serialises batches so two timers never move files or write the log concurrently
+        self.processing_lock = threading.Lock()
 
         # Statistics
         self.stats = {
@@ -75,27 +79,47 @@ class PDFWatcher(FileSystemEventHandler):
         if file_path.name.startswith('.') or file_path.name.startswith('~'):
             return
 
+        # Ignore our own moves when the library sits inside the watched folder
+        if file_path.resolve().is_relative_to(self.ebooks_folder.resolve()):
+            return
+
         print(f"\n🔔 New PDF detected: {file_path.name}")
         print(f"   Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
         with self.lock:
             self.pending_pdfs.add(file_path)
-
-            # Cancel existing timer
-            if self.process_timer:
-                self.process_timer.cancel()
-
-            # Start new timer
-            self.process_timer = threading.Timer(
-                self.batch_delay,
-                self._process_pending_pdfs
-            )
-            self.process_timer.start()
+            self._schedule_processing()
 
             print(f"   ⏳ Waiting {self.batch_delay}s for more PDFs...")
 
+    def on_moved(self, event):
+        """Called when a file is renamed (e.g. browser .crdownload -> .pdf)"""
+        if event.is_directory:
+            return
+
+        dest_path = getattr(event, 'dest_path', '')
+        if not dest_path or Path(dest_path).suffix.lower() != '.pdf':
+            return
+
+        self.on_created(types.SimpleNamespace(src_path=dest_path, is_directory=False))
+
+    def _schedule_processing(self):
+        """(Re)start the batch timer. Caller must hold self.lock."""
+        if self.process_timer:
+            self.process_timer.cancel()
+
+        self.process_timer = threading.Timer(
+            self.batch_delay,
+            self._process_pending_pdfs
+        )
+        self.process_timer.start()
+
     def _process_pending_pdfs(self):
-        """Process all pending PDFs in a batch"""
+        """Process all pending PDFs in a batch, one batch at a time"""
+        with self.processing_lock:
+            self._process_batch()
+
+    def _process_batch(self):
         with self.lock:
             if not self.pending_pdfs:
                 return
@@ -129,6 +153,7 @@ class PDFWatcher(FileSystemEventHandler):
                     # Add back to pending
                     with self.lock:
                         self.pending_pdfs.add(pdf_path)
+                        self._schedule_processing()
                     continue
 
                 valid_pdfs.append(pdf_path)
@@ -137,7 +162,7 @@ class PDFWatcher(FileSystemEventHandler):
                 continue
 
         if not valid_pdfs:
-            print("ℹ️  No valid PDFs to process\n")
+            print("ℹ️  No valid PDFs to process\n")  # noqa: RUF001 - intentional info glyph in console output
             return
 
         # Create a temporary downloads folder with just these PDFs
@@ -145,14 +170,14 @@ class PDFWatcher(FileSystemEventHandler):
         try:
             from organize_batch import BatchPDFOrganizer
 
-            # Create organizer instance with content analysis enabled
+            # Content previews leave the machine only when the user opted in
             with BatchPDFOrganizer(
                 downloads_folder=self.downloads_folder,
                 ebooks_folder=self.ebooks_folder,
                 api_key=self.api_key,
                 provider=self.provider,
                 dry_run=False,
-                use_content_analysis=True  # Enable smart renaming for gibberish filenames
+                use_content_analysis=self.content_analysis
             ) as organizer:
                 # Get PDF info
                 pdf_list = []
@@ -172,6 +197,7 @@ class PDFWatcher(FileSystemEventHandler):
                     return
 
                 # Match and move
+                moved = 0
                 categorization_map = {cat['number']: cat for cat in categorizations}
 
                 for i, pdf_info in enumerate(pdf_list, 1):
@@ -193,16 +219,27 @@ class PDFWatcher(FileSystemEventHandler):
                     print(f"   → Category: {result['category']}")
                     print(f"   → Confidence: {result['confidence']}")
 
-                    # Move the file
-                    organizer.move_pdf(result)
+                    # Move the file; one bad file must not abort the batch
+                    try:
+                        destination = organizer.move_pdf(result)
+                    except Exception as move_error:
+                        print(f"❌ Failed to move {pdf_info['filename']}: {move_error}")
+                        self.stats['failed'] += 1
+                        self.stats['total_processed'] += 1
+                        continue
 
+                    organizer.log['organized_files'].append(
+                        {**result, 'destination': str(destination)}
+                    )
+                    moved += 1
                     self.stats['successful'] += 1
                     self.stats['total_processed'] += 1
 
                 # Update log
-                organizer.save_log()
+                if moved:
+                    organizer.save_log()
 
-                print(f"\n✅ Successfully organized {len(valid_pdfs)} PDF(s)")
+                print(f"\n✅ Organized {moved} of {len(pdf_list)} PDF(s)")
                 self._print_stats()
 
         except Exception as e:
@@ -212,7 +249,7 @@ class PDFWatcher(FileSystemEventHandler):
             self.stats['failed'] += len(valid_pdfs)
 
         print(f"\n{'='*70}")
-        print(f"  👀 Continuing to watch for new PDFs...")
+        print("  👀 Continuing to watch for new PDFs...")
         print(f"{'='*70}\n")
 
     def _print_stats(self):
@@ -221,7 +258,7 @@ class PDFWatcher(FileSystemEventHandler):
         hours = int(runtime.total_seconds() // 3600)
         minutes = int((runtime.total_seconds() % 3600) // 60)
 
-        print(f"\n📊 Statistics:")
+        print("\n📊 Statistics:")
         print(f"   Total processed: {self.stats['total_processed']}")
         print(f"   Successful: {self.stats['successful']}")
         print(f"   Failed: {self.stats['failed']}")
@@ -257,6 +294,9 @@ Examples:
                        help='API key for the selected provider')
     parser.add_argument('--delay', type=int, default=10,
                        help='Batch delay in seconds (default: 10)')
+    parser.add_argument('--content-analysis', action='store_true',
+                       help='Send text previews of unclear files to the AI provider '
+                            '(off by default)')
 
     args = parser.parse_args()
 
@@ -269,7 +309,9 @@ Examples:
         sys.exit(1)
 
     if not ebooks_folder.exists():
-        create = input(f"\n📁 Ebooks folder doesn't exist. Create {ebooks_folder}? (Y/n): ").strip().lower()
+        create = input(
+            f"\n📁 Ebooks folder doesn't exist. Create {ebooks_folder}? (Y/n): "
+        ).strip().lower()
         if create in ['', 'y', 'yes']:
             ebooks_folder.mkdir(parents=True, exist_ok=True)
             print(f"✅ Created: {ebooks_folder}")
@@ -283,7 +325,8 @@ Examples:
         ebooks_folder=ebooks_folder,
         api_key=args.api_key,
         provider=args.provider,
-        batch_delay=args.delay
+        batch_delay=args.delay,
+        content_analysis=args.content_analysis
     )
 
     # Create observer

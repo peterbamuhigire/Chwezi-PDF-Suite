@@ -15,12 +15,14 @@ Features:
 - Batch processing support
 """
 
-import os
 import json
-from datetime import datetime
-from pathlib import Path
-from io import BytesIO
+import os
 import re
+from contextlib import suppress
+from datetime import datetime
+from io import BytesIO
+from pathlib import Path
+from typing import ClassVar
 
 try:
     from PIL import Image
@@ -34,8 +36,8 @@ except ImportError:
     fitz = None
 
 try:
-    from reportlab.pdfgen import canvas
     from reportlab.lib.utils import ImageReader
+    from reportlab.pdfgen import canvas
 except ImportError:
     print("ERROR: ReportLab not installed. Run: pip install reportlab")
     raise
@@ -50,8 +52,8 @@ except ImportError:
 class PDFSignature:
     """Core signature placement engine"""
 
-    VALID_POSITIONS = ['bottom-right', 'bottom-left', 'top-right', 'top-left']
-    VALID_PAGE_OPTIONS = ['all', 'first', 'last', 'odd', 'even']
+    VALID_POSITIONS: ClassVar[list[str]] = ['bottom-right', 'bottom-left', 'top-right', 'top-left']
+    VALID_PAGE_OPTIONS: ClassVar[list[str]] = ['all', 'first', 'last', 'odd', 'even']
     A4_PORTRAIT_WIDTH_POINTS = 595.2755905511812  # 210 mm at 72 PDF points/inch
 
     def __init__(self, signature_image_path, position='bottom-left',
@@ -68,7 +70,8 @@ class PDFSignature:
             y_offset: Vertical margin from edge in inches (0.1-2.0)
             opacity: Transparency level (0.1-1.0, where 1.0 is opaque)
             rotation: Rotation angle in degrees (0-360)
-            pages: Page selection - 'all', 'first', 'last', 'odd', 'even', or range like '1-5,10,15-20'
+            pages: Page selection - 'all', 'first', 'last', 'odd', 'even', or range
+                like '1-5,10,15-20'
             skip_pages: Pages to never sign even if selected, e.g. '3' or '1,5,10-12'
         """
         # Validate signature image
@@ -82,7 +85,7 @@ class PDFSignature:
                 self.signature_image = img.copy()
             self.signature_path = signature_image_path
         except Exception as e:
-            raise ValueError(f"Failed to load signature image: {e}")
+            raise ValueError(f"Failed to load signature image: {e}") from e
 
         # Validate position
         if position not in self.VALID_POSITIONS:
@@ -117,7 +120,11 @@ class PDFSignature:
         self._validate_pages_format()
 
         # Parse skip_pages into a set
-        self._skip_set = self._parse_page_range(skip_pages.strip()) if skip_pages and skip_pages.strip() else set()
+        self._skip_set = (
+            self._parse_page_range(skip_pages.strip())
+            if skip_pages and skip_pages.strip()
+            else set()
+        )
 
     def _validate_pages_format(self):
         """Validate the pages parameter format"""
@@ -126,7 +133,10 @@ class PDFSignature:
 
         # Check if it's a valid range format (e.g., "1-5,10,15-20")
         if not re.match(r'^[\d\s,\-]+$', self.pages):
-            raise ValueError(f"Invalid pages format. Use 'all', 'first', 'last', 'odd', 'even', or ranges like '1-5,10,15-20'")
+            raise ValueError(
+                "Invalid pages format. Use 'all', 'first', 'last', 'odd', 'even', "
+                "or ranges like '1-5,10,15-20'"
+            )
 
     @staticmethod
     def _parse_page_range(range_str):
@@ -437,6 +447,12 @@ class PDFSignature:
 
             result['output_path'] = output_pdf_path
 
+            if os.path.abspath(output_pdf_path) == os.path.abspath(input_pdf_path):
+                raise ValueError(
+                    "Output path is the same as the input path; "
+                    "refusing to overwrite the source PDF"
+                )
+
             if fitz is not None:
                 total_pages, pages_signed = self._add_signature_to_pdf_with_pymupdf(
                     input_pdf_path, output_pdf_path
@@ -524,7 +540,10 @@ class PDFSignature:
 
         # Find all PDFs
         pdf_files = []
+        output_resolved = Path(output_directory).resolve()
         for root, dirs, files in os.walk(pdf_directory):
+            # Do not descend into the output directory (would re-sign signed PDFs)
+            dirs[:] = [d for d in dirs if Path(root, d).resolve() != output_resolved]
             for file in files:
                 if file.lower().endswith('.pdf'):
                     pdf_files.append(os.path.join(root, file))
@@ -570,10 +589,18 @@ class PDFSignature:
         # Load existing log if it exists
         if os.path.exists(log_path):
             try:
-                with open(log_path, 'r', encoding='utf-8') as f:
+                with open(log_path, encoding='utf-8') as f:
                     log_data = json.load(f)
-            except:
-                pass  # Start fresh if log is corrupted
+            except (OSError, ValueError):
+                # Keep the unreadable log for inspection and start fresh
+                stamp = datetime.now().strftime('%Y%m%d-%H%M%S-%f')
+                backup = f"{os.path.splitext(log_path)[0]}.corrupt-{stamp}.json"
+                with suppress(OSError):
+                    os.replace(log_path, backup)
+                log_data = {'signed_files': []}
+        if not isinstance(log_data, dict):
+            log_data = {'signed_files': []}
+        log_data.setdefault('signed_files', [])
 
         # Add new entries
         for result in file_results:
@@ -606,7 +633,9 @@ def _legacy_main():
     import sys
     import threading
     import tkinter as tk
-    from tkinter import ttk, filedialog, messagebox
+    from tkinter import filedialog, messagebox, ttk
+
+    from ui_theme import BODY_FONT
 
     missing = check_dependencies()
     if missing:
@@ -615,7 +644,7 @@ def _legacy_main():
         sys.exit(1)
 
     class SignatureGUI:
-        POSITIONS = [
+        POSITIONS: ClassVar[list[tuple[str, str, int, int]]] = [
             ('↖', 'top-left',     0, 0),
             ('↗', 'top-right',    0, 1),
             ('↙', 'bottom-left',  1, 0),
@@ -648,7 +677,7 @@ def _legacy_main():
         # ── layout ──────────────────────────────────────────────
 
         def _build(self):
-            pad = dict(padx=8, pady=4)
+            pad = {'padx': 8, 'pady': 4}
 
             # ── Files ────────────────────────────────────────────
             f_files = ttk.LabelFrame(self.root, text=' Files ', padding=6)
@@ -808,7 +837,7 @@ def _legacy_main():
 
         def _on_slider(self, val, label, res):
             v = float(val)
-            label.config(text=f'{v:.1f}' if res < 1 else str(int(round(v))))
+            label.config(text=f'{v:.1f}' if res < 1 else str(round(v)))
             self._update_preview()
 
         # ── preview canvas ───────────────────────────────────────
@@ -879,7 +908,7 @@ def _legacy_main():
                                    width=1, stipple=stipple)
 
             c.create_text(cw // 2, ch // 2 + 8,
-                          text='Preview', fill='#bbb', font=('Arial', 9))
+                          text='Preview', fill='#bbb', font=(BODY_FONT, 9))
 
         # ── signing ──────────────────────────────────────────────
 
@@ -950,17 +979,17 @@ def check_dependencies():
     missing = []
 
     try:
-        import PIL
+        import PIL  # noqa: F401  (availability probe: the import is the test)
     except ImportError:
         missing.append('pillow')
 
     try:
-        import reportlab
+        import reportlab  # noqa: F401  (availability probe)
     except ImportError:
         missing.append('reportlab')
 
     try:
-        import pypdf
+        import pypdf  # noqa: F401  (availability probe)
     except ImportError:
         missing.append('pypdf')
 

@@ -22,9 +22,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - run: python -m pip install -e ".[dev,extract]"
+      # `suite` installs the legacy app dependencies so their regression tests run, not skip.
+      - run: python -m pip install -e ".[dev,suite]"
       - run: python -m ruff check src tests
       - run: python -m ruff format --check src tests
+      - name: Legacy modules lint (full config)
+        run: python -m ruff check . --extend-exclude skills
       - run: python -m mypy src/chwezi_docs
       - run: python -m pytest --cov=chwezi_docs --cov-report=term-missing
       - run: python -m pip_audit --local --skip-editable

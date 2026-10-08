@@ -1,10 +1,10 @@
 # Smart Renaming Guide
 
-This guide documents a PDF-specific renaming workflow inside the broader `pyPDFLibrarianSort` Python tools workspace.
+This guide documents a PDF-specific renaming workflow inside the Chwezi Document Suite.
 
 ## How the System Handles Gibberish Filenames
 
-The PDF organizer now includes **intelligent content analysis** to handle PDFs with meaningless filenames like `SAJSABC4345.pdf`.
+The PDF organiser now includes **intelligent content analysis** to handle PDFs with meaningless filenames like `SAJSABC4345.pdf`.
 
 ## How It Works
 
@@ -97,28 +97,36 @@ Output:
 **Content analysis adds minimal cost:**
 
 - Extracts ~1000 characters per PDF
-- Still uses batch processing (100x cost savings)
-- Example: 50 PDFs with gibberish names = **$0.10 total** (vs $2.50 without batching)
+- Still uses batch processing: previews ride in the same single API call
+- Example: 50 PDFs with gibberish names = **one API call** (vs 50 calls without batching); the previews add input tokens, so the call costs somewhat more
+- Off by default: enable it explicitly, because previews of document text leave your computer
 
 The extra content is worth it for proper categorization!
 
 ## How to Use
 
-### Batch Mode (Default - Content Analysis ON)
+### Batch Mode (Content Analysis must be enabled)
 
 ```bash
-python organize_batch.py
+python organize_batch.py --content-analysis
 ```
 
-Content analysis is **enabled by default** for both batch and watch modes.
+Content analysis is **off by default** everywhere. Enable it explicitly:
+
+- Desktop GUI: tick **Send text previews of unclear files to the AI provider**.
+- Web interface: tick the same option in Settings.
+- Watch mode: pass `--content-analysis`.
+- CLI: pass `--content-analysis` to `organize_batch.py`.
+
+Without it, only filenames and PDF metadata (title and author) are sent to the AI provider. With it, a text preview (about 1000 characters from the first pages) of files with unclear names is also sent.
 
 ### Watch Mode (Auto-Rename Gibberish)
 
 ```bash
-python watch_organizer.py --ebooks F:/ebooks --provider gemini --api-key YOUR_KEY
+python watch_organizer.py --ebooks F:/ebooks --provider gemini --api-key YOUR_KEY --content-analysis
 ```
 
-Watch mode automatically:
+With `--content-analysis`, watch mode automatically:
 1. Detects gibberish filenames
 2. Reads content
 3. Suggests better names
@@ -156,9 +164,9 @@ study reveals...
 
 ## Configuration
 
-### Disable Content Analysis (Faster but Less Accurate)
+### Content Analysis in Code
 
-If you want to skip content extraction:
+Content analysis is opt-in. Pass `use_content_analysis=True` to enable it (the default sends only filenames and metadata):
 
 ```python
 from organize_batch import BatchPDFOrganizer
@@ -167,7 +175,7 @@ organizer = BatchPDFOrganizer(
     downloads_folder="~/Downloads",
     ebooks_folder="~/ebooks",
     api_key="YOUR_KEY",
-    use_content_analysis=False  # Disable content analysis
+    use_content_analysis=True  # Opt in: send text previews of unclear files
 )
 ```
 

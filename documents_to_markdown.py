@@ -31,13 +31,82 @@ from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE, PP_PLACEHOLDER
 from pypdf import PdfReader
 
-
 SUPPORTED_EXTENSIONS = {".pdf", ".epub", ".docx", ".doc", ".pptx"}
 LIST_RE = re.compile(r"^(?P<marker>(?:[-*\u2022o])|(?:\d+[.)]))\s+(?P<text>.+)$")
 ROMAN_RE = re.compile(r"^(?=[ivxlcdmIVXLCDM]+$)[IVXLCDMivxlcdm]{1,8}$")
 WORD_NS = {
     "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
 }
+# Archive limits for DOCX/EPUB/PPTX (R-005). Untrusted archives can declare tiny
+# compressed sizes that expand to gigabytes, so sizes are checked and reads are capped.
+MAX_ARCHIVE_MEMBERS = 10_000
+MAX_ARCHIVE_MEMBER_BYTES = 64 * 1024 * 1024
+MAX_ARCHIVE_TOTAL_BYTES = 512 * 1024 * 1024
+MAX_COMPRESSION_RATIO = 200
+COMPRESSION_RATIO_FLOOR_BYTES = 1024 * 1024
+ENTITY_DECLARATION_RE = re.compile(r"<!ENTITY", re.IGNORECASE)
+
+
+def open_checked_archive(path: Path) -> zipfile.ZipFile:
+    """Open a ZIP container after rejecting archive-bomb shaped metadata."""
+    archive = zipfile.ZipFile(path)
+    try:
+        members = archive.infolist()
+        if len(members) > MAX_ARCHIVE_MEMBERS:
+            raise ValueError(f"{path.name}: archive has too many entries ({len(members)}).")
+        total = 0
+        for info in members:
+            total += info.file_size
+            if info.file_size > MAX_ARCHIVE_MEMBER_BYTES:
+                raise ValueError(f"{path.name}: archive entry {info.filename} is too large.")
+            if (
+                info.file_size > COMPRESSION_RATIO_FLOOR_BYTES
+                and info.file_size > MAX_COMPRESSION_RATIO * max(info.compress_size, 1)
+            ):
+                raise ValueError(
+                    f"{path.name}: archive entry {info.filename} is suspiciously compressed."
+                )
+        if total > MAX_ARCHIVE_TOTAL_BYTES:
+            raise ValueError(f"{path.name}: archive expands beyond the size limit.")
+    except BaseException:
+        archive.close()
+        raise
+    return archive
+
+
+def read_archive_member(archive: zipfile.ZipFile, name: str) -> bytes:
+    """Read one member, enforcing the cap on actual bytes because metadata can lie."""
+    with archive.open(name) as handle:
+        data = handle.read(MAX_ARCHIVE_MEMBER_BYTES + 1)
+    if len(data) > MAX_ARCHIVE_MEMBER_BYTES:
+        raise ValueError(f"Archive entry {name} exceeds the size limit.")
+    return data
+
+
+def _decode_for_scan(data: bytes) -> str:
+    """Decode XML bytes the way a parser would, so UTF-16/32 cannot hide declarations."""
+    if data.startswith((b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff")):
+        return data.decode("utf-32", errors="replace")
+    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return data.decode("utf-16", errors="replace")
+    if data[:1] == b"\x00":
+        return data.decode("utf-16-be", errors="replace")
+    if data[1:2] == b"\x00":
+        return data.decode("utf-16-le", errors="replace")
+    return data.decode("utf-8", errors="replace")
+
+
+def reject_entity_declarations(data: bytes) -> None:
+    if ENTITY_DECLARATION_RE.search(_decode_for_scan(data)):
+        raise ValueError("XML entity declarations are not allowed in documents.")
+
+
+def parse_untrusted_xml(data: bytes) -> ET.Element:
+    """Parse document XML; OOXML and EPUB never need entity declarations."""
+    reject_entity_declarations(data)
+    return ET.fromstring(data)  # noqa: S314 - entity declarations rejected above
+
+
 EPUB_NS = {
     "container": "urn:oasis:names:tc:opendocument:xmlns:container",
     "opf": "http://www.idpf.org/2007/opf",
@@ -85,7 +154,7 @@ class SlideContent:
 
 
 class HtmlToMarkdownParser(HTMLParser):
-    HEADING_TAGS = {"h1", "h2", "h3", "h4", "h5", "h6"}
+    HEADING_TAGS = frozenset({"h1", "h2", "h3", "h4", "h5", "h6"})
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -138,9 +207,13 @@ class HtmlToMarkdownParser(HTMLParser):
         if text:
             if self.current_tag in self.HEADING_TAGS:
                 level = int(self.current_tag[1])
-                self.blocks.append(MarkdownBlock(kind="heading", text=text, level=max(2, min(level + 1, 4))))
+                self.blocks.append(
+                    MarkdownBlock(kind="heading", text=text, level=max(2, min(level + 1, 4)))
+                )
             elif self.current_tag == "li":
-                self.blocks.append(MarkdownBlock(kind="list", text=text, level=max(0, self.list_depth - 1)))
+                self.blocks.append(
+                    MarkdownBlock(kind="list", text=text, level=max(0, self.list_depth - 1))
+                )
             elif self.current_tag == "pre":
                 self.blocks.append(MarkdownBlock(kind="code", text=text))
             else:
@@ -406,7 +479,9 @@ def group_words_into_lines(page, page_number: int) -> list[PdfLine]:
 
     lines: list[PdfLine] = []
     for group in grouped:
-        text = clean_text(" ".join(item["text"] for item in sorted(group, key=lambda value: value["x0"])))
+        text = clean_text(
+            " ".join(item["text"] for item in sorted(group, key=lambda value: value["x0"]))
+        )
         if not text:
             continue
 
@@ -444,9 +519,7 @@ def line_is_noise(line: PdfLine) -> bool:
         return True
     if re.fullmatch(r"\d{1,4}", text):
         return True
-    if ROMAN_RE.fullmatch(text):
-        return True
-    return False
+    return bool(ROMAN_RE.fullmatch(text))
 
 
 def heading_levels(lines: list[PdfLine], body_size: float) -> dict[float, int]:
@@ -470,7 +543,10 @@ def infer_title(lines: list[PdfLine], fallback: str) -> str:
         return fallback
 
     largest = max(page_one, key=lambda line: (line.size, -line.top))
-    if largest.size >= statistics.median(line.size for line in page_one) * 1.2 and len(largest.text) <= 120:
+    if (
+        largest.size >= statistics.median(line.size for line in page_one) * 1.2
+        and len(largest.text) <= 120
+    ):
         return largest.text
     return fallback
 
@@ -532,18 +608,19 @@ def lines_to_blocks(lines: list[PdfLine]) -> tuple[str, list[MarkdownBlock]]:
         rounded_size = round(line.size, 1)
         if rounded_size in level_map and looks_like_heading(line, body_size):
             flush_paragraph()
-            blocks.append(MarkdownBlock(kind="heading", text=line.text, level=level_map[rounded_size]))
+            blocks.append(
+                MarkdownBlock(kind="heading", text=line.text, level=level_map[rounded_size])
+            )
             previous_line = line
             continue
 
         new_paragraph = False
-        if previous_line is None:
-            new_paragraph = True
-        elif line.page_number != previous_line.page_number:
-            new_paragraph = True
-        elif (line.top - previous_line.bottom) > max(4, line.size * 0.9):
-            new_paragraph = True
-        elif abs(line.x0 - previous_line.x0) > 20:
+        if (
+            previous_line is None
+            or line.page_number != previous_line.page_number
+            or (line.top - previous_line.bottom) > max(4, line.size * 0.9)
+            or abs(line.x0 - previous_line.x0) > 20
+        ):
             new_paragraph = True
 
         if new_paragraph:
@@ -584,7 +661,9 @@ class DocumentToMarkdownConverter:
 
     def extract_blocks(self, pdf_path: Path) -> tuple[str, list[MarkdownBlock]]:
         reader = PdfReader(str(pdf_path))
-        fallback_title = metadata_title(reader) or pdf_path.stem.replace("_", " ").strip() or pdf_path.stem
+        fallback_title = (
+            metadata_title(reader) or pdf_path.stem.replace("_", " ").strip() or pdf_path.stem
+        )
         lines = extract_lines(pdf_path)
         title, blocks = lines_to_blocks(lines)
         if title == "Untitled Document":
@@ -592,6 +671,8 @@ class DocumentToMarkdownConverter:
         return title, blocks
 
     def extract_powerpoint_slides(self, pptx_path: Path) -> tuple[str, list[SlideContent]]:
+        with open_checked_archive(pptx_path):
+            pass
         presentation = Presentation(str(pptx_path))
         title = powerpoint_title(presentation, pptx_path)
         slides = [
@@ -604,10 +685,10 @@ class DocumentToMarkdownConverter:
         paragraphs: list[MarkdownBlock] = []
         title = docx_path.stem.replace("_", " ").strip() or docx_path.stem
 
-        with zipfile.ZipFile(docx_path) as archive:
-            document_xml = archive.read("word/document.xml")
+        with open_checked_archive(docx_path) as archive:
+            document_xml = read_archive_member(archive, "word/document.xml")
 
-        root = ET.fromstring(document_xml)
+        root = parse_untrusted_xml(document_xml)
         body = root.find("w:body", WORD_NS)
         if body is None:
             return title, []
@@ -617,7 +698,11 @@ class DocumentToMarkdownConverter:
                 block = self._docx_paragraph_to_block(child)
                 if not block:
                     continue
-                if title == docx_path.stem.replace("_", " ").strip() and block.kind == "heading" and block.level == 2:
+                if (
+                    title == docx_path.stem.replace("_", " ").strip()
+                    and block.kind == "heading"
+                    and block.level == 2
+                ):
                     title = block.text
                     continue
                 paragraphs.append(block)
@@ -651,7 +736,9 @@ class DocumentToMarkdownConverter:
 
         heading_match = re.match(r"heading([1-6])", style.replace(" ", "").lower())
         if heading_match:
-            return MarkdownBlock(kind="heading", text=text, level=max(2, min(int(heading_match.group(1)) + 1, 4)))
+            return MarkdownBlock(
+                kind="heading", text=text, level=max(2, min(int(heading_match.group(1)) + 1, 4))
+            )
 
         return MarkdownBlock(kind="paragraph", text=text)
 
@@ -660,16 +747,18 @@ class DocumentToMarkdownConverter:
         for row in table.findall("w:tr", WORD_NS):
             cells = []
             for cell in row.findall("w:tc", WORD_NS):
-                text = clean_text(" ".join(node.text or "" for node in cell.findall(".//w:t", WORD_NS)))
+                text = clean_text(
+                    " ".join(node.text or "" for node in cell.findall(".//w:t", WORD_NS))
+                )
                 cells.append(text)
             if cells:
                 rows.append("| " + " | ".join(cells) + " |")
         return rows
 
     def extract_epub_blocks(self, epub_path: Path) -> tuple[str, list[MarkdownBlock]]:
-        with zipfile.ZipFile(epub_path) as archive:
+        with open_checked_archive(epub_path) as archive:
             opf_path = self._epub_opf_path(archive)
-            opf_root = ET.fromstring(archive.read(opf_path))
+            opf_root = parse_untrusted_xml(read_archive_member(archive, opf_path))
             base = Path(opf_path).parent
             manifest = {
                 item.attrib["id"]: item.attrib
@@ -677,7 +766,9 @@ class DocumentToMarkdownConverter:
                 if "id" in item.attrib and "href" in item.attrib
             }
             title_node = opf_root.find(".//{http://purl.org/dc/elements/1.1/}title")
-            title = clean_text(title_node.text if title_node is not None else "") or epub_path.stem.replace("_", " ")
+            title = clean_text(title_node.text if title_node is not None else "") or (
+                epub_path.stem.replace("_", " ")
+            )
             blocks: list[MarkdownBlock] = []
 
             for itemref in opf_root.findall(".//opf:spine/opf:itemref", EPUB_NS):
@@ -689,14 +780,16 @@ class DocumentToMarkdownConverter:
                     continue
                 content_path = (base / item["href"]).as_posix()
                 parser = HtmlToMarkdownParser()
-                parser.feed(unescape(archive.read(content_path).decode("utf-8", errors="replace")))
+                content = read_archive_member(archive, content_path)
+                reject_entity_declarations(content)
+                parser.feed(unescape(content.decode("utf-8", errors="replace")))
                 parser.close()
                 blocks.extend(parser.blocks)
 
         return title, blocks
 
     def _epub_opf_path(self, archive: zipfile.ZipFile) -> str:
-        container = ET.fromstring(archive.read("META-INF/container.xml"))
+        container = parse_untrusted_xml(read_archive_member(archive, "META-INF/container.xml"))
         rootfile = container.find(".//container:rootfile", EPUB_NS)
         if rootfile is None:
             raise ValueError("EPUB container does not point to an OPF package.")
@@ -711,21 +804,26 @@ class DocumentToMarkdownConverter:
     def _convert_legacy_doc_to_docx(self, doc_path: Path, output_dir: Path) -> Path:
         soffice = shutil.which("soffice") or shutil.which("libreoffice")
         if soffice:
-            subprocess.run(
-                [
-                    soffice,
-                    "--headless",
-                    "--convert-to",
-                    "docx",
-                    "--outdir",
-                    str(output_dir),
-                    str(doc_path),
-                ],
-                check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
+            try:
+                subprocess.run(  # noqa: S603 - fixed argv list, no shell; soffice resolved via shutil.which
+                    [
+                        soffice,
+                        "--headless",
+                        "--convert-to",
+                        "docx",
+                        "--outdir",
+                        str(output_dir),
+                        str(doc_path),
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=180,
+                )
+            except subprocess.TimeoutExpired as exc:
+                raise RuntimeError(
+                    f"LibreOffice timed out after 180 seconds converting {doc_path.name}."
+                ) from exc
             converted = output_dir / f"{doc_path.stem}.docx"
             if converted.exists():
                 return converted
@@ -734,7 +832,8 @@ class DocumentToMarkdownConverter:
             import win32com.client  # type: ignore
         except ImportError as exc:
             raise RuntimeError(
-                "Legacy .doc conversion requires LibreOffice on PATH or Microsoft Word with pywin32 available."
+                "Legacy .doc conversion requires LibreOffice on PATH or Microsoft Word with "
+                "pywin32 available."
             ) from exc
 
         converted = output_dir / f"{doc_path.stem}.docx"
@@ -788,7 +887,11 @@ class DocumentToMarkdownConverter:
 
         if input_path.is_dir():
             files = sorted(
-                (path for path in input_path.rglob("*") if path.is_file() and path.suffix.lower() in self.supported_extensions),
+                (
+                    path
+                    for path in input_path.rglob("*")
+                    if path.is_file() and path.suffix.lower() in self.supported_extensions
+                ),
                 key=lambda path: (path.stat().st_size, str(path).lower()),
             )
             if not files:
@@ -798,7 +901,9 @@ class DocumentToMarkdownConverter:
 
         raise ValueError(f"Input path not found: {input_path}")
 
-    def output_path_for(self, source_path: Path, input_path: Path, output_dir: Path, used_paths: set[Path]) -> Path:
+    def output_path_for(
+        self, source_path: Path, input_path: Path, output_dir: Path, used_paths: set[Path]
+    ) -> Path:
         base_dir = input_path if input_path.is_dir() else input_path.parent
         if input_path.is_dir():
             relative_path = source_path.relative_to(base_dir).with_suffix(".md")
@@ -811,11 +916,12 @@ class DocumentToMarkdownConverter:
             used_paths.add(normalized)
             return output_path
 
-        output_path = output_path.with_name(f"{source_path.stem}_{source_path.suffix.lower().lstrip('.')}.md")
+        suffix_tag = source_path.suffix.lower().lstrip(".")
+        output_path = output_path.with_name(f"{source_path.stem}_{suffix_tag}.md")
         normalized = output_path.resolve()
         counter = 2
         while normalized in used_paths:
-            output_path = output_path.with_name(f"{source_path.stem}_{source_path.suffix.lower().lstrip('.')}_{counter}.md")
+            output_path = output_path.with_name(f"{source_path.stem}_{suffix_tag}_{counter}.md")
             normalized = output_path.resolve()
             counter += 1
         used_paths.add(normalized)
@@ -851,7 +957,6 @@ class DocumentToMarkdownConverter:
 
             try:
                 output_path.parent.mkdir(parents=True, exist_ok=True)
-                output_path.touch(exist_ok=True)
                 result = self.build_markdown(source_path, output_path)
                 results.append(result)
             except Exception as exc:
@@ -1250,7 +1355,10 @@ def build_arg_parser():
         description="Convert PDF, EPUB, Word, and PowerPoint files into structured Markdown files."
     )
     parser.add_argument("--gui", action="store_true", help="Launch the converter GUI.")
-    parser.add_argument("--input", help="Path to a supported document file or a directory containing supported files.")
+    parser.add_argument(
+        "--input",
+        help="Path to a supported document file or a directory containing supported files.",
+    )
     parser.add_argument("--output-dir", help="Directory where Markdown files will be written.")
     return parser
 

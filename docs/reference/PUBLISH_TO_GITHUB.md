@@ -1,41 +1,42 @@
-# ðŸš€ Ready to Publish pyPDFLibrarianSort to GitHub
+> **Historical:** written for the former pyPDFLibrarianSort repository; the project is now Chwezi Document Suite at github.com/peterbamuhigire/Chwezi-PDF-Suite. Current setup: see [INSTALLATION.md](../../INSTALLATION.md) and [CONTRIBUTING.md](../../CONTRIBUTING.md).
+
+# 🚀 Ready to Publish pyPDFLibrarianSort to GitHub
 
 Everything is ready! Follow these exact steps:
 
 ---
 
-## âœ… What You Have
+## ✅ What You Have
 
 All files are organized and ready in your `/outputs` folder:
 
 ```
 pyPDFLibrarianSort/
-â”œâ”€â”€ README.md                    âœ… Main documentation
-â”œâ”€â”€ LICENSE                      âœ… MIT License
-â”œâ”€â”€ CONTRIBUTING.md              âœ… Contribution guide
-â”œâ”€â”€ .gitignore                   âœ… Git ignore file
-â”œâ”€â”€ requirements.txt             âœ… Dependencies
-â”œâ”€â”€ PROJECT_SUMMARY.md           âœ… Project overview
-â”œâ”€â”€ organize_batch.py            âœ… Canonical organizer (GUI + CLI)
-â”œâ”€â”€ pdf_signature.py             âœ… Canonical signing tool
-â”œâ”€â”€ test_basic.py                âœ… Testing tool
-â”œâ”€â”€ diagnose.py                  âœ… Diagnostics
-â””â”€â”€ docs/                        âœ… Documentation folder
-    â”œâ”€â”€ COST_COMPARISON.md
-    â”œâ”€â”€ INSTALLATION.md
-    â”œâ”€â”€ QUICK_START.md
-    â”œâ”€â”€ ERROR_HANDLING.md
-    â”œâ”€â”€ HIERARCHICAL_CATEGORIES.md
-    â”œâ”€â”€ NEW_FEATURES.md
-    â”œâ”€â”€ PORTABLE_USAGE.md
-    â”œâ”€â”€ SIMPLIFIED_README.md
-    â”œâ”€â”€ GITHUB_SETUP.md
-    â””â”€â”€ GIT_COMMANDS.md
+├── README.md                    ✅ Main documentation
+├── LICENSE                      ✅ MIT License
+├── CONTRIBUTING.md              ✅ Contribution guide
+├── .gitignore                   ✅ Git ignore file
+├── requirements.txt             ✅ Dependencies
+├── PROJECT_SUMMARY.md           ✅ Project overview
+├── organize_batch.py            ✅ Canonical organizer (GUI + CLI)
+├── pdf_signature.py             ✅ Canonical signing tool
+├── test_basic.py                ✅ Testing tool
+├── diagnose.py                  ✅ Diagnostics
+└── docs/                        ✅ Documentation folder
+    ├── COST_COMPARISON.md
+    ├── INSTALLATION.md
+    ├── QUICK_START.md
+    ├── ERROR_HANDLING.md
+    ├── HIERARCHICAL_CATEGORIES.md
+    ├── NEW_FEATURES.md
+    ├── PORTABLE_USAGE.md
+    ├── SIMPLIFIED_README.md
+    └── (see CONTRIBUTING.md for git guidance)
 ```
 
 ---
 
-## ðŸ“‹ Step-by-Step Publishing
+## 📋 Step-by-Step Publishing
 
 ### Step 1: Create GitHub Repository
 
@@ -44,10 +45,10 @@ pyPDFLibrarianSort/
 2. **Fill in:**
    - Repository name: `pyPDFLibrarianSort`
    - Description: `AI-powered PDF library organizer - Your intelligent librarian for organizing thousands of PDFs! 100x more cost-effective.`
-   - Visibility: **Public** âœ…
-   - **DO NOT** check "Initialize with README" âŒ
-   - **DO NOT** add .gitignore âŒ
-   - **DO NOT** add license âŒ
+   - Visibility: **Public** ✅
+   - **DO NOT** check "Initialize with README" ❌
+   - **DO NOT** add .gitignore ❌
+   - **DO NOT** add license ❌
 
 3. **Click:** "Create repository"
 
@@ -116,7 +117,7 @@ git remote add origin https://github.com/peterbamuhigire/pyPDFLibrarianSort.git
 git push -u origin main
 ```
 
-**After this, your code is live on GitHub!** ðŸŽ‰
+**After this, your code is live on GitHub!** 🎉
 
 ---
 
@@ -124,7 +125,7 @@ git push -u origin main
 
 1. **Go to your repository:** `https://github.com/peterbamuhigire/pyPDFLibrarianSort`
 
-2. **Click** the gear icon âš™ï¸ next to "About"
+2. **Click** the gear icon ⚙️ next to "About"
 
 3. **Add these topics:**
    - `pdf`
@@ -156,21 +157,21 @@ git push -u origin main
    - Description:
 
 ```markdown
-## ðŸŽ‰ First Release of pyPDFLibrarianSort
+## 🎉 First Release of pyPDFLibrarianSort
 
 **Your AI librarian that organizes thousands of PDFs intelligently and economically!**
 
-### âœ¨ Features
+### ✨ Features
 
-- ðŸ¤– **AI-Powered Categorization** using Gemini
-- ðŸ’° **100x More Cost-Effective** ($0.10 vs $10 for 200 PDFs)
-- ðŸŒ² **Hierarchical Folder Structures**
-- ðŸ“ **Smart Auto-Renaming** from PDF metadata
-- ðŸ” **Recursive Search** in subdirectories
-- ðŸŽ’ **Portable Mode** - works anywhere
-- âš¡ **Fast** - 200 PDFs in 2-3 minutes
+- 🤖 **AI-Powered Categorization** using Gemini
+- 💰 **100x More Cost-Effective** ($0.10 vs $10 for 200 PDFs)
+- 🌲 **Hierarchical Folder Structures**
+- 📝 **Smart Auto-Renaming** from PDF metadata
+- 🔍 **Recursive Search** in subdirectories
+- 🎒 **Portable Mode** - works anywhere
+- ⚡ **Fast** - 200 PDFs in 2-3 minutes
 
-### ðŸš€ Quick Start
+### 🚀 Quick Start
 
 ```bash
 # Install
@@ -180,24 +181,24 @@ pip install -r requirements.txt
 python organize_batch.py
 ```
 
-### ðŸ“Š Cost Comparison
+### 📊 Cost Comparison
 
 | PDFs | Traditional | Batch Mode | Savings |
 |------|------------|------------|---------|
 | 200  | $10.00     | $0.10      | 99%     |
 | 500  | $25.00     | $0.15      | 99%     |
 
-### ðŸ“– Documentation
+### 📖 Documentation
 
-See [README.md](README.md) for full documentation.
+See [README.md](../../README.md) for full documentation.
 
-### ðŸ™ Credits
+### 🙏 Credits
 
 Powered by [Google Gemini AI](https://ai.google.dev/)
 
 ---
 
-â­ Star this repo if it helps you organize your PDF library!
+⭐ Star this repo if it helps you organize your PDF library!
 
 ```
 
@@ -220,32 +221,32 @@ Add dynamic badges to your README.md:
 
 ### Step 7: Enable GitHub Features
 
-1. **Go to:** Settings â†’ General
+1. **Go to:** Settings → General
 
 2. **Enable:**
-   - âœ… Issues
-   - âœ… Discussions (for community Q&A)
-   - âœ… Projects (optional)
-   - âœ… Wiki (optional)
+   - ✅ Issues
+   - ✅ Discussions (for community Q&A)
+   - ✅ Projects (optional)
+   - ✅ Wiki (optional)
 
 3. **Save**
 
 ---
 
-## ðŸŒ Share Your Project
+## 🌍 Share Your Project
 
 ### Social Media Posts
 
 **Twitter/X:**
 
 ```
-ðŸš€ Just open-sourced pyPDFLibrarianSort!
+🚀 Just open-sourced pyPDFLibrarianSort!
 
 Your AI librarian for organizing PDFs:
-âœ¨ Intelligent categorization
-ðŸ’° 100x more cost-effective
-ðŸŒ² Deep folder hierarchies  
-ðŸ“ Smart auto-renaming
+✨ Intelligent categorization
+💰 100x more cost-effective
+🌲 Deep folder hierarchies  
+📝 Smart auto-renaming
 
 200 PDFs: $0.10 vs $10!
 
@@ -262,10 +263,10 @@ github.com/peterbamuhigire/pyPDFLibrarianSort
 I'm excited to share pyPDFLibrarianSort - an open-source AI-powered PDF organizer!
 
 Key Features:
-â€¢ Uses Gemini AI for intelligent categorization
-â€¢ 100x more cost-effective than traditional methods
-â€¢ Preserves hierarchical folder structures
-â€¢ Auto-renames files using metadata
+• Uses Gemini AI for intelligent categorization
+• 100x more cost-effective than traditional methods
+• Preserves hierarchical folder structures
+• Auto-renames files using metadata
 
 Perfect for researchers, students, and anyone with large PDF libraries.
 
@@ -307,25 +308,25 @@ github.com/peterbamuhigire/pyPDFLibrarianSort
 
 ---
 
-## ðŸ“ˆ Monitor Your Project
+## 📈 Monitor Your Project
 
 ### First Week Goals
 
-- â­ 10-20 stars
-- ðŸ´ 2-5 forks
-- ðŸ‘€ 100+ views
-- ðŸ’¬ 1-2 discussions
+- ⭐ 10-20 stars
+- 🍴 2-5 forks
+- 👀 100+ views
+- 💬 1-2 discussions
 
 ### First Month Goals
 
-- â­ 50-100 stars
-- ðŸ´ 10-20 forks
-- ðŸ‘€ 500+ views
-- ðŸ› 5-10 issues/feature requests
+- ⭐ 50-100 stars
+- 🍴 10-20 forks
+- 👀 500+ views
+- 🐛 5-10 issues/feature requests
 
 ---
 
-## ðŸŽ¯ Next Steps After Publishing
+## 🎯 Next Steps After Publishing
 
 1. **Monitor Issues** - Respond within 24-48 hours
 2. **Welcome Contributors** - Be friendly and helpful
@@ -336,7 +337,7 @@ github.com/peterbamuhigire/pyPDFLibrarianSort
 
 ---
 
-## âœ… Pre-Publish Checklist
+## ✅ Pre-Publish Checklist
 
 Before you push, verify:
 
@@ -350,7 +351,7 @@ Before you push, verify:
 
 ---
 
-## ðŸ†˜ If Something Goes Wrong
+## 🆘 If Something Goes Wrong
 
 ### Wrong commit message?
 
@@ -376,7 +377,7 @@ rm -rf .git
 
 ---
 
-## ðŸŽ‰ You're Ready
+## 🎉 You're Ready
 
 **Your repository will be live at:**
 
@@ -405,7 +406,7 @@ git push -u origin main
 
 ---
 
-**Good luck! ðŸš€**
+**Good luck! 🚀**
 
 **Remember:** Replace `peterbamuhigire` with your actual GitHub username in all commands and links!
 
@@ -413,5 +414,5 @@ git push -u origin main
 
 **Questions?**
 
-- Check `docs/GITHUB_SETUP.md` for detailed guide
-- Check `docs/GIT_COMMANDS.md` for git reference
+- See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the current contribution and release workflow
+- See [CONTRIBUTING.md](../../CONTRIBUTING.md) for git conventions

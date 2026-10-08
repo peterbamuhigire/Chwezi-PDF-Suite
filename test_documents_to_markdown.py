@@ -9,9 +9,9 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+from pptx import Presentation
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-from pptx import Presentation
 
 from documents_to_markdown import DocumentToMarkdownConverter
 
@@ -37,11 +37,14 @@ def create_sample_docx(target: Path) -> Path:
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
-  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/document.xml"
+    ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
 </Types>"""
     rels = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+  <Relationship Id="rId1"
+    Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+    Target="word/document.xml"/>
 </Relationships>"""
     document = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
@@ -67,8 +70,12 @@ def create_sample_epub(target: Path) -> Path:
 </container>"""
     opf = """<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
-  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Sample EPUB Book</dc:title></metadata>
-  <manifest><item id="chapter1" href="chapter1.xhtml" media-type="application/xhtml+xml"/></manifest>
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:title>Sample EPUB Book</dc:title>
+  </metadata>
+  <manifest>
+    <item id="chapter1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
   <spine><itemref idref="chapter1"/></spine>
 </package>"""
     chapter = """<?xml version="1.0" encoding="UTF-8"?>
@@ -135,7 +142,10 @@ def test_single_file_conversion():
         content = markdown_path.read_text(encoding="utf-8")
         assert_contains(content, "# Sample PDF Book")
         assert_contains(content, "## Getting Started")
-        assert_contains(content, "This is the first paragraph on page one. It should appear in the Markdown output.")
+        assert_contains(
+            content,
+            "This is the first paragraph on page one. It should appear in the Markdown output.",
+        )
         assert_contains(content, "1. First numbered item")
 
 
@@ -158,7 +168,9 @@ def test_mixed_directory_conversion():
         output_names = {path.name for path in results}
         if "book.md" not in output_names or "reader.md" not in output_names:
             raise AssertionError(f"Unexpected output names: {sorted(output_names)}")
-        collision_names = {name for name in output_names if name.startswith("book_") and name.endswith(".md")}
+        collision_names = {
+            name for name in output_names if name.startswith("book_") and name.endswith(".md")
+        }
         if len(collision_names) != 1:
             raise AssertionError(f"Unexpected output names: {sorted(output_names)}")
 

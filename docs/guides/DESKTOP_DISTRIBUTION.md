@@ -45,7 +45,7 @@ The applications never install dependencies while running.
 The packaging generator lives in Peter's canonical software-engineering skill engine:
 
 ```powershell
-$Packager = 'C:\Users\Peter\.claude\skills\skills\languages\python-modern-standards\scripts\desktop_suite_packager.py'
+$Packager = 'C:\wamp64\www\chwezi-dev-engine\skills\languages\python-modern-standards\scripts\desktop_suite_packager.py'
 python $Packager doctor --config packaging\desktop-suite.toml
 python $Packager generate --config packaging\desktop-suite.toml
 ```
@@ -54,6 +54,13 @@ python $Packager generate --config packaging\desktop-suite.toml
 patterns, and release prerequisites. For this repository it intentionally blocks an external
 release until a maintainer adds the selected `LICENSE`. It also reports missing Inno Setup as an
 installer warning.
+
+`generate` overwrites `packaging/generated/chwezi-document-suite.spec` with the suite icon on
+every executable. After regenerating, restore the project override so the organiser, signer and
+Markdown converter keep their own icons (`static/icons/apps/app-*.ico`, as declared per
+application in the manifest); `tests/unit/test_desktop_suite_ui.py` fails if this is missed.
+The build hashes `desktop-suite.toml` byte-for-byte, and `.gitattributes` pins it to CRLF so the
+hash matches on every checkout.
 
 ## Build and verify
 

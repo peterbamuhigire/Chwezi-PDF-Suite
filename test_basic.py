@@ -20,11 +20,11 @@ print()
 # Test 1: Imports
 print("Test 1: Checking imports...")
 try:
-    from google import genai as google_genai
-    import anthropic
-    import openai
-    from pypdf import PdfReader
-    import pdfplumber
+    import anthropic  # noqa: F401  (import is the availability test)
+    import openai  # noqa: F401
+    import pdfplumber  # noqa: F401
+    from google import genai as google_genai  # noqa: F401
+    from pypdf import PdfReader  # noqa: F401
     print("✓ All imports successful")
 except ImportError as e:
     print(f"❌ Import failed: {e}")
@@ -57,7 +57,7 @@ else:
 if not api_key:
     print("⚠ Skipping API test")
 else:
-    print(f"✓ Using provided key: {api_key[:10]}...")
+    print(f"✓ Using provided key: ...{api_key[-4:] if len(api_key) > 8 else '****'}")
 
 # Test 3: Create test folders
 print("\nTest 3: Creating test folders...")

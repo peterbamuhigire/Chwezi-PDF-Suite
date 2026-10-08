@@ -2,6 +2,7 @@
 
 let uploadedFiles = [];
 let analysisResults = [];
+let apiKeySaved = false;  // The server never returns the key itself.
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
@@ -171,7 +172,7 @@ async function analyzeFiles() {
 
     // Check settings
     const settings = await getSettings();
-    if (!settings.api_key || !settings.ebooks_folder) {
+    if (!settings.has_api_key || !settings.ebooks_folder) {
         showToast('Please configure settings first', 'warning');
         showSettings();
         return;
@@ -323,10 +324,11 @@ async function saveSettings() {
     const settings = {
         ebooks_folder: document.getElementById('ebooksFolder').value,
         provider: document.getElementById('provider').value,
-        api_key: document.getElementById('apiKey').value
+        api_key: document.getElementById('apiKey').value,
+        content_analysis: document.getElementById('contentAnalysis').checked
     };
 
-    if (!settings.ebooks_folder || !settings.api_key) {
+    if (!settings.ebooks_folder || (!settings.api_key && !apiKeySaved)) {
         showToast('Please fill in all required fields', 'warning');
         return;
     }
@@ -341,6 +343,8 @@ async function saveSettings() {
         const data = await response.json();
 
         if (data.success) {
+            apiKeySaved = apiKeySaved || Boolean(settings.api_key);
+            document.getElementById('apiKey').value = '';
             showToast('Settings saved!', 'success');
             showUpload();
         } else {
@@ -362,9 +366,11 @@ async function loadSettings() {
         if (settings.provider) {
             document.getElementById('provider').value = settings.provider;
         }
-        if (settings.api_key) {
-            document.getElementById('apiKey').value = settings.api_key;
-        }
+        document.getElementById('contentAnalysis').checked = Boolean(settings.content_analysis);
+        apiKeySaved = Boolean(settings.has_api_key);
+        document.getElementById('apiKey').placeholder = apiKeySaved
+            ? 'Key saved - leave blank to keep it'
+            : 'Enter your API key';
     } catch (error) {
         console.error('Failed to load settings:', error);
     }

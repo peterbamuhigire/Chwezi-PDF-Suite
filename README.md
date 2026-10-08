@@ -41,7 +41,7 @@ From the repository root, open the document-tool launcher with:
 python index-app.py
 ```
 
-The launcher opens centered and provides Documents to Markdown, PDF Organizer, and PDF Signer.
+The launcher opens centered and provides Documents to Markdown, PDF organiser, and PDF Signer.
 Its saved light/dark preference applies to the complete interface and to each maintained GUI.
 The startup sequence raises the window once so it does not remain hidden behind another Windows
 application.
@@ -70,8 +70,8 @@ and its three tools into one distributable folder. Install `uv`, then run:
 
 ```powershell
 uv sync --locked --extra suite --extra test --group desktop-build
-python C:\Users\Peter\.claude\skills\skills\languages\python-modern-standards\scripts\desktop_suite_packager.py doctor --config packaging\desktop-suite.toml
-python C:\Users\Peter\.claude\skills\skills\languages\python-modern-standards\scripts\desktop_suite_packager.py generate --config packaging\desktop-suite.toml
+python C:\wamp64\www\chwezi-dev-engine\skills\languages\python-modern-standards\scripts\desktop_suite_packager.py doctor --config packaging\desktop-suite.toml
+python C:\wamp64\www\chwezi-dev-engine\skills\languages\python-modern-standards\scripts\desktop_suite_packager.py generate --config packaging\desktop-suite.toml
 .\scripts\build-desktop-suite.ps1 -UnsignedDevelopmentBuild -SkipInstaller
 ```
 
@@ -143,10 +143,12 @@ python test_signature.py
 
 ## Security and privacy
 
-Core processing is local. Remote AI organisation in legacy tools is optional and must not be
-treated as private local processing. Do not expose the legacy Flask application to untrusted
-networks; it has documented security gaps and is scheduled for replacement by a thin,
-localhost-only adapter over shared services.
+Core processing is local. AI organisation in the PDF organiser is optional and is not private
+local processing: by default it sends filenames and PDF metadata (title and author) to your chosen
+provider, and only sends text previews of unclear files if you explicitly enable content analysis.
+The web interface listens on 127.0.0.1:5000 only, has no authentication, keeps the API key
+server-side and rejects cross-origin requests; do not expose it to a network. Default models are
+`gemini-3.8-flash`, `claude-haiku-5-5` and `deepseek-flash`.
 
 Report vulnerabilities using the process in [SECURITY.md](SECURITY.md).
 

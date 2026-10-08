@@ -1,8 +1,8 @@
 # Portable Usage Guide
 
-## Ã°Å¸Å½â€™ Using PDF Organizer from Any Location
+## 🎒 Using PDF organiser from Any Location
 
-The PDF Organizer is now fully portable! You can run it from:
+The PDF organiser is now fully portable! You can run it from:
 
 - ✅ USB flash drive
 - ✅ External hard drive
@@ -18,7 +18,7 @@ The tool **automatically detects** the current user's Downloads folder, so it wo
 
 ---
 
-## Ã°Å¸Å¡â‚¬ Quick Start (Portable Mode)
+## 🚀 Quick Start (Portable Mode)
 
 ### Step 1: Copy All Files
 
@@ -65,7 +65,7 @@ The tool will:
 - **Ebooks Folder:** e.g., `F:\ebooks` or `D:\MyLibrary`
   - Set once in the GUI
   - Saved in settings file
-- **API Key:** Your Gemini API key
+- **API Key:** Your AI provider API key (Gemini, Anthropic or DeepSeek)
   - Enter once in the GUI
   - Saved in settings file
 
@@ -170,7 +170,7 @@ python organize_batch.py --ebooks "F:\ebooks" --api-key "your-key" --dry-run
 
 ---
 
-## Ã°Å¸Å½Â¯ Use Cases
+## 🎯 Use Cases
 
 ### 1. Work + Home
 
@@ -296,7 +296,7 @@ Ready to use on other computers!
 
 ---
 
-## Ã°Å¸Å½â€œ How Auto-Detection Works
+## 🎓 How Auto-Detection Works
 
 ```python
 # The tool uses Python's pathlib to detect user home
@@ -309,8 +309,8 @@ downloads = Path.home() / "Downloads"
 # Linux: /home/peter/Downloads
 ```
 
-This ensures it works for **any user** on **any computer**! Ã°Å¸Å½â€°
+This ensures it works for **any user** on **any computer**! 🎉
 
 ---
 
-**Enjoy your portable PDF organizer!** 📚✨
+**Enjoy your portable PDF organiser!** 📚✨

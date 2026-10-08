@@ -1,18 +1,20 @@
-# PDF Organizer - Simplified Filename-Based Version
+> **Historical:** this describes an earlier simplified version (2 packages: google-genai, pypdf). The project is now Chwezi Document Suite; current dependencies are defined in `pyproject.toml` and `requirements.txt`. See [INSTALLATION.md](../../INSTALLATION.md).
 
-## ðŸŽ¯ What Changed?
+# PDF organiser - Simplified Filename-Based Version
+
+## 🎯 What Changed?
 
 This version is **much simpler and faster** because it:
 
-- âœ… Uses **filenames** instead of reading PDF content
-- âœ… Only needs **2 packages** (google-genai, pypdf) instead of 5
-- âœ… Works **instantly** - no slow PDF text extraction
-- âœ… More **reliable** - fewer things to go wrong
-- âœ… Better for **large libraries** - processes 100x faster
+- ✅ Uses **filenames** instead of reading PDF content
+- ✅ Needed fewer packages in that earlier version (current dependencies: see `pyproject.toml`)
+- ✅ Works **instantly** - no slow PDF text extraction
+- ✅ More **reliable** - fewer things to go wrong
+- ✅ Better for **large libraries** - processes 100x faster
 
 ---
 
-## ðŸ“‹ How It Works Now
+## 📋 How It Works Now
 
 ### Old Approach (Slow)
 
@@ -35,13 +37,13 @@ This version is **much simpler and faster** because it:
 
 ---
 
-## ðŸ’¡ Why Filenames Work Better
+## 💡 Why Filenames Work Better
 
 Most PDFs already have descriptive names:
 
-- âœ… `Python_Programming_Guide.pdf` â†’ Computer & ICT/Programming/Python
-- âœ… `Tax_Planning_2024.pdf` â†’ Business & Finance/Accounting/Tax
-- âœ… `Quantum_Physics_Introduction.pdf` â†’ Science/Physics/Quantum
+- ✅ `Python_Programming_Guide.pdf` → Computer & ICT/Programming/Python
+- ✅ `Tax_Planning_2024.pdf` → Business & Finance/Accounting/Tax
+- ✅ `Quantum_Physics_Introduction.pdf` → Science/Physics/Quantum
 
 Even auto-generated names like `1221432HASdade.pdf` get:
 
@@ -50,13 +52,11 @@ Even auto-generated names like `1221432HASdade.pdf` get:
 
 ---
 
-## ðŸš€ Quick Start
+## 🚀 Quick Start
 
-### Install (Only 2 Packages!)
+### Install
 
-```bash
-pip install google-genai pypdf
-```
+This page is historical. For current installation use `python -m pip install -e ".[dev,extract]"` (extras are defined in `pyproject.toml`) or `python -m pip install -r requirements.txt`.
 
 ### Run
 
@@ -68,7 +68,7 @@ Follow the prompts - that's it!
 
 ---
 
-## ðŸ“Š Performance Comparison
+## 📊 Performance Comparison
 
 | Feature | Old (Content-Based) | New (Filename-Based) |
 |---------|-------------------|---------------------|
@@ -80,7 +80,7 @@ Follow the prompts - that's it!
 
 ---
 
-## ðŸŽ“ Example Categorization
+## 🎓 Example Categorization
 
 ### Example 1: Well-Named File
 
@@ -89,24 +89,24 @@ Filename: Python_Web_Development_Django.pdf
 Metadata Title: Django Web Development
 
 AI Decision:
-ðŸ“ Computer & ICT/Programming & Development/Python
-ðŸ’¡ Reasoning: Python web development using Django framework
-ðŸ“Š Confidence: high
+📁 Computer & ICT/Programming & Development/Python
+💡 Reasoning: Python web development using Django framework
+📊 Confidence: high
 ```
 
-### Example 2: Poor Filename â†’ Auto-Rename
+### Example 2: Poor Filename → Auto-Rename
 
 ```
 Original: 1221432HASdade.pdf
 Metadata Title: Machine Learning Fundamentals
 
 Step 1 - Rename:
-ðŸ“ '1221432HASdade' â†’ 'Machine Learning Fundamentals'
+📝 '1221432HASdade' → 'Machine Learning Fundamentals'
 
 Step 2 - Categorize:
-ðŸ“ Computer & ICT/Artificial Intelligence
-ðŸ’¡ Reasoning: Machine learning educational material
-ðŸ“Š Confidence: high
+📁 Computer & ICT/Artificial Intelligence
+💡 Reasoning: Machine learning educational material
+📊 Confidence: high
 ```
 
 ### Example 3: Generic Name + Metadata
@@ -117,14 +117,14 @@ Metadata Title: Annual Tax Planning Guide
 Author: IRS Publications
 
 AI Decision:
-ðŸ“ Business & Finance/Accounting/Tax Planning
-ðŸ’¡ Reasoning: Tax planning guide from IRS
-ðŸ“Š Confidence: high
+📁 Business & Finance/Accounting/Tax Planning
+💡 Reasoning: Tax planning guide from IRS
+📊 Confidence: high
 ```
 
 ---
 
-## ðŸ”§ What Gets Analyzed
+## 🔧 What Gets Analyzed
 
 For each PDF:
 
@@ -138,7 +138,7 @@ That's it! No content reading needed.
 
 ---
 
-## âœ… Advantages
+## ✅ Advantages
 
 ### Speed
 
@@ -165,21 +165,21 @@ That's it! No content reading needed.
 
 ---
 
-## ðŸŽ¯ Tips for Best Results
+## 🎯 Tips for Best Results
 
 ### 1. Keep Descriptive Filenames
 
 Good filenames help:
 
-- âœ… `Python_Tutorial_2024.pdf`
-- âœ… `Business_Plan_Template.pdf`
-- âœ… `Quantum_Physics_Introduction.pdf`
+- ✅ `Python_Tutorial_2024.pdf`
+- ✅ `Business_Plan_Template.pdf`
+- ✅ `Quantum_Physics_Introduction.pdf`
 
 Poor filenames:
 
-- âŒ `doc.pdf`
-- âŒ `download.pdf`
-- âŒ `file123.pdf`
+- ❌ `doc.pdf`
+- ❌ `download.pdf`
+- ❌ `file123.pdf`
 
 **Solution:** Tool auto-renames these using metadata!
 
@@ -187,7 +187,7 @@ Poor filenames:
 
 When creating PDFs, set the title:
 
-- File â†’ Properties â†’ Title
+- File → Properties → Title
 - This helps auto-renaming
 
 ### 3. Let AI Learn
@@ -196,7 +196,7 @@ The more organized PDFs you have, the better AI gets at matching patterns.
 
 ---
 
-## ðŸ”„ What About Content-Based?
+## 🔄 What About Content-Based?
 
 If you **really** need content-based categorization:
 
@@ -208,13 +208,13 @@ But honestly, **filename-based works great** for 95% of cases and is much faster
 
 ---
 
-## ðŸ“¦ Files You Need
+## 📦 Files You Need
 
 ### Essential
 
 - `organize_batch.py` - Main organizer (GUI + CLI)
 - `organize_batch.py` - Interactive launcher
-- `requirements.txt` - Just 2 packages now!
+- `requirements.txt` - Runtime dependencies (see also `pyproject.toml` extras)
 
 ### Optional
 
@@ -229,14 +229,14 @@ But honestly, **filename-based works great** for 95% of cases and is much faster
 
 ---
 
-## ðŸŽ“ Example Full Session
+## 🎓 Example Full Session
 
 ```bash
 $ python organize_batch.py
 
 Step 1: Checking dependencies...
-  âœ“ google-genai
-  âœ“ pypdf
+  ✓ google-genai
+  ✓ pypdf
 
 Step 2: Configure Downloads Folder
 Auto-detected: C:\Users\Peter\Downloads
@@ -256,37 +256,37 @@ Analyzing ebooks structure...
 Found 23 categories
 
 [1/50] Python_Tutorial.pdf
-  ðŸ“ Computer & ICT/Programming & Development/Python
-  âœ“ Confidence: high
+  📁 Computer & ICT/Programming & Development/Python
+  ✓ Confidence: high
 
 [2/50] 1234556.pdf
-  ðŸ“ Rename: '1234556' â†’ 'Tax Guide 2024'
-  ðŸ“ Business & Finance/Accounting/Tax Planning
-  âœ“ Confidence: high
+  📝 Rename: '1234556' → 'Tax Guide 2024'
+  📁 Business & Finance/Accounting/Tax Planning
+  ✓ Confidence: high
 
 [Processing 3-50...]
 
-âœ“ Organized 50 PDFs in 2 minutes!
-âœ“ Renamed 12 files based on metadata
+✓ Organized 50 PDFs in 2 minutes!
+✓ Renamed 12 files based on metadata
 
 Check: F:\ebooks
 ```
 
 ---
 
-## ðŸ’¯ Success Rate
+## 💯 Success Rate
 
 Based on typical PDF libraries:
 
-- **70%** have descriptive filenames â†’ Instant categorization
-- **20%** have poor names but good metadata â†’ Auto-rename + categorize
-- **10%** have poor names and no metadata â†’ Go to "Uncategorized"
+- **70%** have descriptive filenames → Instant categorization
+- **20%** have poor names but good metadata → Auto-rename + categorize
+- **10%** have poor names and no metadata → Go to "Uncategorized"
 
 **Overall: 90-95% success rate** with 100x speed improvement!
 
 ---
 
-## ðŸ†˜ Troubleshooting
+## 🆘 Troubleshooting
 
 ### "Still too slow"
 
@@ -302,14 +302,14 @@ Files likely have poor names and no metadata - rename manually
 
 ---
 
-## âœ¨ Summary
+## ✨ Summary
 
 The simplified version:
 
-- ðŸš€ **100x faster** (1-2 sec vs 5-10 sec per PDF)
-- ðŸŽ¯ **90-95% accurate** (vs 95% for content-based)
-- ðŸ’ª **More reliable** (no PDF parsing issues)
-- ðŸ”§ **Simpler** (2 packages vs 5)
-- âœ… **Works better** for most users
+- 🚀 **100x faster** (1-2 sec vs 5-10 sec per PDF)
+- 🎯 **90-95% accurate** (vs 95% for content-based)
+- 💪 **More reliable** (no PDF parsing issues)
+- 🔧 **Simpler** (2 packages vs 5)
+- ✅ **Works better** for most users
 
-**Just use filenames - they're usually good enough!** ðŸ“šâœ¨
+**Just use filenames - they're usually good enough!** 📚✨

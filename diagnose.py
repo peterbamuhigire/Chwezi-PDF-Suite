@@ -21,8 +21,9 @@ api_key = None
 # Check Python version
 print("1. Python Version:")
 print(f"   {sys.version}")
-if sys.version_info < (3, 8):
-    print("   ❌ WARNING: Python 3.8+ recommended")
+# diagnose.py must report old interpreters, so this check cannot assume the project minimum
+if sys.version_info < (3, 11):  # noqa: UP036
+    print("   ❌ WARNING: Python 3.11+ is required")
 else:
     print("   ✓ OK")
 print()
@@ -63,7 +64,7 @@ if settings_file.exists():
     print(f"   ✓ Found: {settings_file}")
     try:
         import json
-        with open(settings_file, 'r') as f:
+        with open(settings_file) as f:
             settings = json.load(f)
         
         print()
@@ -72,23 +73,23 @@ if settings_file.exists():
             downloads = settings['downloads_path']
             print(f"   Downloads: {downloads}")
             if Path(downloads).exists():
-                print(f"              ✓ Exists")
+                print("              ✓ Exists")
             else:
-                print(f"              ❌ Does not exist")
+                print("              ❌ Does not exist")
         else:
-            print(f"   Downloads: Not set")
+            print("   Downloads: Not set")
         
         if settings.get('ebooks_path'):
             ebooks = settings['ebooks_path']
             print(f"   Ebooks:    {ebooks}")
             if Path(ebooks).exists():
-                print(f"              ✓ Exists")
+                print("              ✓ Exists")
             else:
-                print(f"              ❌ Does not exist")
+                print("              ❌ Does not exist")
         else:
-            print(f"   Ebooks:    Not set")
+            print("   Ebooks:    Not set")
         
-        print(f"   API Key:   Not stored")
+        print("   API Key:   Not stored")
     except Exception as e:
         print(f"   ⚠ Error reading settings: {e}")
 else:
@@ -104,7 +105,7 @@ if auto_downloads.exists():
     pdf_count = len(list(auto_downloads.glob('*.pdf')))
     print(f"              ✓ Exists ({pdf_count} PDFs in root)")
 else:
-    print(f"              ❌ Does not exist")
+    print("              ❌ Does not exist")
 print()
 
 # Test PDF Organizer import

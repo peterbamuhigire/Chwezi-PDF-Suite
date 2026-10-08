@@ -4,8 +4,10 @@ PDF Content Analyzer - Enhanced text extraction for better categorization
 Handles PDFs with gibberish filenames by reading actual content
 """
 
-from pypdf import PdfReader
 from pathlib import Path
+
+from pypdf import PdfReader
+
 
 class PDFContentAnalyzer:
     """Analyzes PDF content for better categorization and naming"""
@@ -50,8 +52,7 @@ class PDFContentAnalyzer:
                     text = page.extract_text()
                     if text:
                         extracted_text.append(text)
-                except Exception as e:
-                    # Skip pages that fail to extract
+                except Exception:  # noqa: S112  (skip pages that fail to extract)
                     continue
 
             # Combine and limit text
@@ -91,14 +92,15 @@ class PDFContentAnalyzer:
         - aB3xY9Zq2.pdf
         - temp_file_12345.pdf
         """
-        stem = Path(filename).stem.lower()
+        original_stem = Path(filename).stem
+        stem = original_stem.lower()
 
         # Check various gibberish patterns
         checks = {
             'too_short': len(stem) < 5,
             'mostly_numbers': sum(c.isdigit() for c in stem) > len(stem) * 0.6,
             'all_numbers': stem.replace('_', '').replace('-', '').isdigit(),
-            'random_case_mix': self._has_random_case_pattern(stem),
+            'random_case_mix': self._has_random_case_pattern(original_stem),
             'temp_file': stem.startswith(('temp', 'tmp', 'download', 'untitled')),
             'no_vowels': not any(c in 'aeiou' for c in stem.lower()),
         }
@@ -116,9 +118,12 @@ class PDFContentAnalyzer:
         # Count case transitions (like aBcDeF)
         transitions = 0
         for i in range(len(text) - 1):
-            if text[i].isalpha() and text[i+1].isalpha():
-                if text[i].islower() != text[i+1].islower():
-                    transitions += 1
+            if (
+                text[i].isalpha()
+                and text[i+1].isalpha()
+                and text[i].islower() != text[i+1].islower()
+            ):
+                transitions += 1
 
         # If more than 3 transitions in a short string, likely random
         return transitions > 3
@@ -182,12 +187,12 @@ def test_analyzer():
     print(f"Is Gibberish: {data['is_gibberish']}")
 
     if data['is_gibberish']:
-        print(f"Gibberish Indicators:")
+        print("Gibberish Indicators:")
         for check, result in data['gibberish_checks'].items():
             if result:
                 print(f"  ✓ {check}")
 
-    print(f"\nMetadata:")
+    print("\nMetadata:")
     for key, value in data['metadata'].items():
         if value:
             print(f"  {key}: {value}")

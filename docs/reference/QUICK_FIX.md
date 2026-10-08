@@ -13,19 +13,19 @@ python: can't open file 'C:\Windows\System32\organize_batch.py':
 
 The batch file is running from the wrong directory (System32 instead of where your files are).
 
-## âœ… SOLUTION - Use START_HERE.bat
+## ✅ SOLUTION - Run from the project folder
 
-**The easiest fix:** Use the new `START_HERE.bat` file instead of `run_gui.bat`
+**The easiest fix:** open a terminal in the project folder and launch the suite from there.
 
-1. **Double-click `START_HERE.bat`** in the folder containing all the PDF Organizer files
-2. It will automatically use the correct directory
+```
+python index-app.py        # Chwezi Document Suite launcher
+python organize_batch.py   # Organizer GUI / CLI
+python web_interface.py    # Web interface (http://localhost:5000)
+```
 
-This new launcher:
+On Linux or macOS you can also run `./run_gui.sh`.
 
-- âœ“ Shows you exactly where it's running from
-- âœ“ Checks if all files are present
-- âœ“ Offers to install dependencies if missing
-- âœ“ Provides detailed error messages
+Running from the project folder guarantees Python finds the other files.
 
 ---
 
@@ -33,27 +33,21 @@ This new launcher:
 
 ### Option 1: Run from Command Prompt (Recommended)
 
-1. **Open File Explorer** and navigate to the folder with your PDF Organizer files
+1. **Open File Explorer** and navigate to the folder with your PDF organiser files
 2. **Type `cmd`** in the address bar and press Enter
 3. **Run:** `python organize_batch.py`
 
 This guarantees you're in the right directory.
 
-### Option 2: Fix run_gui.bat
+### Option 2: Use the launcher script (Linux/macOS)
 
-The updated `run_gui.bat` should work now. If you downloaded it again, try:
-
-1. Right-click `run_gui.bat`
-2. Select **"Edit"**
-3. Make sure the first command after the comments is: `cd /d "%~dp0"`
-4. Save and close
-5. Double-click to run
+Run `./run_gui.sh` from the project folder. On Windows, use `python index-app.py` instead.
 
 ### Option 3: Create a Shortcut (Best for Desktop)
 
 1. **Right-click** on `organize_batch.py`
 2. Select **"Create shortcut"**
-3. **Right-click** the shortcut â†’ **Properties**
+3. **Right-click** the shortcut → **Properties**
 4. In **"Target"** field, change it to:
 
    ```
@@ -74,7 +68,7 @@ The updated `run_gui.bat` should work now. If you downloaded it again, try:
 
 If nothing else works, use the PowerShell installer:
 
-1. **Right-click** `install_simple.ps1`
+1. **Right-click** `install.ps1`
 2. Select **"Run with PowerShell"**
 3. It will set everything up correctly
 
@@ -84,11 +78,11 @@ If nothing else works, use the PowerShell installer:
 
 All these files must be in the **SAME FOLDER**:
 
-- âœ“ organize_batch.py
-- âœ“ organize_batch.py
-- âœ“ requirements.txt
-- âœ“ setup.py
-- âœ“ START_HERE.bat (or run_gui.bat)
+- ✓ organize_batch.py
+- ✓ organize_batch.py
+- ✓ requirements.txt
+- ✓ setup.py
+- ✓ index-app.py (launcher)
 
 **Good locations:**
 
@@ -98,9 +92,9 @@ All these files must be in the **SAME FOLDER**:
 
 **Bad locations:**
 
-- âŒ Desktop (can work but not ideal)
-- âŒ Downloads (files might get mixed up)
-- âŒ System folders (C:\Windows, C:\Program Files)
+- ❌ Desktop (can work but not ideal)
+- ❌ Downloads (files might get mixed up)
+- ❌ System folders (C:\Windows, C:\Program Files)
 
 ---
 
@@ -119,9 +113,9 @@ If you want to start clean:
    - organize_batch.py
    - requirements.txt
    - setup.py
-   - START_HERE.bat
-   - install_simple.ps1
-   - (all other .py, .bat, .ps1, .txt, .md files)
+   - index-app.py
+   - install.ps1
+   - (all other .py, .ps1, .txt, .md files)
 
 3. **Open Command Prompt in that folder:**
    - Navigate to `C:\PDF-Organizer` in File Explorer
@@ -146,7 +140,7 @@ If you want to start clean:
    python organize_batch.py
    ```
 
-Or just double-click `START_HERE.bat`!
+Or just run `python index-app.py`!
 
 ---
 
@@ -168,7 +162,7 @@ If you see `'python' is not recognized`, then:
 **Fix:**
 
 - Reinstall Python from <https://www.python.org/>
-- âœ… CHECK "Add Python to PATH" during installation
+- ✅ CHECK "Add Python to PATH" during installation
 
 ### Check Dependencies
 
@@ -185,7 +179,7 @@ Look for:
 If missing, install:
 
 ```
-python -m pip install google-genai pdfplumber pypdf
+python -m pip install -r requirements.txt
 ```
 
 ---

@@ -97,8 +97,21 @@ def main():
     print("Batch Delay: How long to wait for more PDFs before processing")
     print("  - Shorter delay (5-10s): Faster organization")
     print("  - Longer delay (20-30s): Better batching, lower API costs")
-    delay = input("Enter delay in seconds [10]: ").strip()
-    delay = int(delay) if delay else 10
+    while True:
+        delay = input("Enter delay in seconds [10]: ").strip()
+        if not delay:
+            delay = 10
+            break
+        if delay.isdigit() and int(delay) >= 1:
+            delay = int(delay)
+            break
+        print("Please enter a whole number of seconds (1 or more).")
+
+    # Consent: content previews leave this computer only on an explicit yes
+    print()
+    print("Content analysis: for unclear filenames, send a short text preview of the PDF")
+    print("to the AI provider so it can suggest a better name. Off unless you say yes.")
+    content_analysis = input("Send text previews to the AI provider? (y/N): ").strip().lower() in {"y", "yes"}
 
     # Summary
     print()
@@ -108,8 +121,9 @@ def main():
     print(f"Downloads: {downloads}")
     print(f"Ebooks:    {ebooks}")
     print(f"Provider:  {provider.title()}")
-    print(f"API Key:   {api_key[:10]}...{api_key[-4:]}")
+    print(f"API Key:   ...{api_key[-4:] if len(api_key) > 8 else '****'}")
     print(f"Delay:     {delay} seconds")
+    print(f"Previews:  {'sent for unclear files' if content_analysis else 'never sent'}")
     print()
     print("💡 Watch mode will:")
     print(f"   • Monitor {downloads} for new PDFs")
@@ -145,6 +159,7 @@ def main():
             api_key=api_key,
             provider=provider,
             batch_delay=delay,
+            content_analysis=content_analysis,
         )
 
         # Create observer

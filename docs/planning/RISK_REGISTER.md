@@ -21,6 +21,26 @@ Scoring: probability 1–5 multiplied by impact 1–5. Scores 1–4 low, 5–9 m
 | R-015 | Dependency API/security changes break unpinned installs | 4 | 4 | 16 | lock file, Dependabot, audit and compatibility CI | packaging owner | resolver drift or advisory |
 | R-016 | Test corpus contains confidential or encumbered documents | 2 | 5 | 10 | synthetic/public-domain fixtures with provenance manifest | test owner | fixture lacks provenance |
 
+## Mitigation status (2026-10-08 Kaizen cycle)
+
+Scores above are unchanged until the maintainer recalibrates them. Evidence:
+[`docs/audits/2026-10-08-kaizen-cycle.md`](../audits/2026-10-08-kaizen-cycle.md).
+
+- **R-001 mitigated in the legacy organiser:** `organize_batch.move_pdf` sanitises AI categories and
+  filenames and enforces root containment; traversal corpus in
+  `tests/unit/test_legacy_organizer_safety.py`. Symlinked directories inside the library are not
+  yet covered.
+- **R-002 mitigated in the legacy web adapter:** the key stays server-side, client paths are
+  ignored in favour of server-issued upload ids, and cross-origin writes are rejected
+  (`tests/unit/test_legacy_web_security.py`). The adapter is still local-only and unauthenticated.
+- **R-005 mitigated in the legacy converter:** DOCX/EPUB/PPTX containers are checked for entry
+  count, entry and total size, and compression ratio; member reads are capped; XML entity
+  declarations are refused (`tests/unit/test_legacy_archive_limits.py`). Limits are fixed
+  constants, not yet user-configurable.
+- **R-011 mitigated:** content analysis is off by default on every organiser path (GUI, CLI, web,
+  watch mode, watch setup) and requires an explicit opt-in. There is no per-run preview of what
+  will be sent and no audit trail yet.
+
 ## Monitoring
 
 Review at each milestone and whenever a converter, external executable, remote provider, web exposure or file-mutation policy changes. Risk acceptance requires the maintainer's explicit record; this document does not accept residual risk.

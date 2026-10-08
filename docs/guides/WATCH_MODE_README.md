@@ -1,6 +1,6 @@
 # Watch Mode - Automatic PDF Organization
 
-This guide documents a PDF-specific automation tool inside the broader `pyPDFLibrarianSort` Python tools workspace.
+This guide documents a PDF-specific automation tool inside the Chwezi Document Suite.
 
 ## What is Watch Mode?
 
@@ -22,16 +22,16 @@ Watch Mode continuously monitors your Downloads folder and automatically organiz
 **How it works:**
 - PDFs arriving within the batch delay (default 10 seconds) are processed together
 - Multiple PDFs = ONE API call
-- Same $0.05-0.10 batch pricing
+- Cost depends on your provider's per-token pricing; batching keeps the number of calls low
 
 **Examples:**
 
-| Scenario | Cost |
-|----------|------|
-| 1 PDF arrives | $0.05 (one API call) |
-| 5 PDFs arrive within 10s | $0.05 (one API call) |
-| 50 PDFs arrive within 10s | $0.05-0.10 (one API call) |
-| 100 PDFs over 1 hour (in small groups) | ~$0.10-0.20 (2-4 API calls) |
+| Scenario | API calls |
+|----------|-----------|
+| 1 PDF arrives | 1 |
+| 5 PDFs arrive within 10s | 1 |
+| 50 PDFs arrive within 10s | 1 |
+| 100 PDFs over 1 hour (in small groups) | One per group (for example 2-4) |
 
 **The batch delay is key:**
 - Longer delay (20-30s) = Better batching = Lower cost
@@ -67,6 +67,7 @@ python watch_organizer.py \
   --ebooks F:/ebooks \                # Where to organize PDFs
   --provider gemini \                 # AI provider (gemini/anthropic/deepseek)
   --api-key YOUR_KEY \                # Your API key
+  --content-analysis \                # Optional: send text previews of unclear files (off by default)
   --delay 10                          # Batch delay in seconds (default: 10)
 ```
 
@@ -86,26 +87,28 @@ python watch_organizer.py \
 6. **Organize**: PDFs are categorized and moved to ebooks folder
 7. **Repeat**: Continues watching for more PDFs
 
+Watch mode also detects browser downloads that finish by renaming (`.crdownload` or `.part` becoming `.pdf`), and ignores files inside the library folder. By default only filenames and PDF metadata (title and author) are sent to the AI provider; `--content-analysis` adds text previews of unclear files. AI-suggested folders and filenames are sanitised and confined to the library, and one failing file does not stop a batch.
+
 ## Examples
 
 ### Download 1 PDF every few minutes
 ```
 PDF arrives → Wait 10s → Process (1 API call) → Continue watching
-Cost: $0.05 per PDF
+Cost: one API call per PDF
 ```
 
 ### Download 10 PDFs at once
 ```
 10 PDFs arrive → Wait 10s → Process all 10 (1 API call) → Continue watching
-Cost: $0.05-0.10 total for all 10 PDFs
+Cost: one API call for all 10 PDFs
 ```
 
 ### Download PDFs throughout the day
 ```
-Morning: 5 PDFs → 1 API call ($0.05)
-Afternoon: 8 PDFs → 1 API call ($0.05)
-Evening: 12 PDFs → 1 API call ($0.05)
-Total: 25 PDFs organized for ~$0.15
+Morning: 5 PDFs → 1 API call
+Afternoon: 8 PDFs → 1 API call
+Evening: 12 PDFs → 1 API call
+Total: 25 PDFs organized in 3 API calls
 ```
 
 ## Stopping Watch Mode
@@ -196,7 +199,7 @@ python watch_organizer.py --provider deepseek --api-key KEY2
 ## Support
 
 If you encounter issues:
-1. Check that all dependencies are installed: `pip install -r requirements.txt`
+1. Check that all dependencies are installed: `python -m pip install -r requirements.txt` (or `python -m pip install -e ".[dev,extract]"`)
 2. Verify your API key is correct
 3. Ensure folders exist and have proper permissions
 4. Check the console output for error messages

@@ -1,8 +1,8 @@
 ## 🌐 Web Interface Guide
 
-# PDF Organizer - Web Interface
+# PDF Organiser - Web Interface
 
-This guide documents the legacy PDF web interface inside the broader `pyPDFLibrarianSort` Python tools workspace.
+This guide documents the legacy PDF web interface inside the Chwezi Document Suite.
 
 A modern, beautiful web interface for organizing PDFs with drag & drop functionality, real-time categorization, and library browsing.
 
@@ -23,7 +23,7 @@ python web_interface.py
 **Option 3: Direct Python**
 ```python
 from web_interface import app
-app.run(host='0.0.0.0', port=5000)
+app.run(host="127.0.0.1", port=5000)  # local only; do not bind to 0.0.0.0
 ```
 
 Then open your browser and go to:
@@ -67,6 +67,8 @@ http://localhost:5000
 ### 6. **Provider Selection**
 - Choose between Gemini, Anthropic, or DeepSeek
 - Configure API keys
+- Default models: `gemini-3.8-flash`, `claude-haiku-5-5`, `deepseek-flash` (override with `model_name` on `BatchPDFOrganizer`)
+- Optional checkbox: **Send text previews of unclear files to the AI provider** (off by default)
 - Set ebooks folder path
 
 ## 🎯 How to Use
@@ -120,7 +122,7 @@ Click **📁 Browse Library** to:
 ### Main Upload Screen
 ```
 ┌─────────────────────────────────────────┐
-│   📚 PDF Organizer                      │
+│   📚 PDF organiser                      │
 │   AI-Powered Library Management         │
 │   [Settings] [Browse] [Statistics]      │
 ├─────────────────────────────────────────┤
@@ -185,7 +187,7 @@ Click **📁 Browse Library** to:
 {
   "ebooks_folder": "F:/ebooks",      // Where PDFs are organized
   "provider": "gemini",              // AI provider
-  "api_key": "your-api-key-here",   // API key
+  "use_content_analysis": false,      // text previews off by default
   "batch_delay": 10                  // Not used in web interface
 }
 ```
@@ -198,35 +200,9 @@ Click **📁 Browse Library** to:
 
 ## 🔧 Advanced Usage
 
-### Custom Port
+### Port and network access
 
-Run on a different port:
-
-```bash
-python web_interface.py --port 8080
-```
-
-Or modify the code:
-```python
-app.run(host='0.0.0.0', port=8080)
-```
-
-### Access from Other Devices
-
-If running on your local network:
-
-1. Find your computer's IP address
-2. Access from another device: `http://YOUR_IP:5000`
-3. Make sure firewall allows port 5000
-
-### Production Deployment
-
-For production use, use a proper WSGI server:
-
-```bash
-pip install gunicorn
-gunicorn -w 4 -b 0.0.0.0:5000 web_interface:app
-```
+The web interface is local-only. It always listens on `127.0.0.1:5000` and has no authentication, so do not bind it to `0.0.0.0`, forward the port, or run it behind a public WSGI server. Cross-origin requests from other web pages are rejected.
 
 ## 📊 API Endpoints
 
@@ -237,11 +213,13 @@ Main page (HTML)
 
 ### GET/POST `/api/settings`
 Get or update settings
+- POST body: `{ ebooks_folder, provider, api_key, content_analysis }`; a blank `api_key` keeps the saved key
+- GET returns `has_api_key` (true/false), never the key itself
 
 ### POST `/api/upload`
 Upload PDF files
 - Body: `FormData` with files
-- Returns: List of uploaded files with IDs
+- Returns: `{ id, filename, size }` per file. Later calls refer to files only by `id`; any `path` sent by a client is ignored
 
 ### POST `/api/analyze`
 Analyze PDFs and get categorization
@@ -264,6 +242,21 @@ Get organization statistics
 ### GET `/api/categories`
 Get available categories
 - Returns: List of existing categories
+
+### POST `/api/signature/upload-image`
+Upload the PNG signature image (`FormData` field `signature`)
+
+### POST `/api/signature/upload-pdfs`
+Upload PDFs to sign; returns `{ id, filename, size }` per file
+
+### POST `/api/signature/process`
+Sign uploaded PDFs
+- Body: `{ files: [{ id }], config: { position, scale, xOffset, yOffset, opacity, rotation, pages, skipPages } }`
+
+### GET `/api/signature/download/<filename>`
+Download a signed PDF
+
+All POST endpoints reject requests whose `Origin` is not this local server.
 
 ## 🐛 Troubleshooting
 
@@ -330,27 +323,19 @@ app.run(port=5001)  # Use different port
 
 ## 🔐 Security Notes
 
-### Local Use Only (Default)
+### Local use only
 
-By default, the web interface is accessible only from your computer:
-```python
-app.run(host='127.0.0.1')  # Local only
-```
+The web interface binds to `127.0.0.1:5000` and has no authentication. It is not designed for network exposure. Requests from other origins (other websites in your browser) are rejected.
 
-### Network Access
+### API key handling
 
-If you enable network access (`host='0.0.0.0'`):
-- Anyone on your network can access it
-- API keys are stored in session (not secure for production)
-- Use HTTPS in production
-- Add authentication for sensitive use
+- The API key you enter is kept on the server side only and is never returned to the browser.
+- It is used only to call your chosen AI provider.
+- Re-enter it after restarting the application.
 
-### API Key Storage
+### What is sent to the AI provider
 
-- API keys stored in Flask session
-- Not persisted to disk
-- Lost when browser session ends
-- Re-enter after restarting browser
+PDFs are processed locally and are not uploaded to the provider. By default only filenames and PDF metadata (title and author) are sent. If you tick **Send text previews of unclear files to the AI provider** in Settings, a short text preview of files with unclear names is also sent.
 
 ## 📈 Future Enhancements
 

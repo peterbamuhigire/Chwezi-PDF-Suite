@@ -4,18 +4,22 @@ PDF Organizer - Web Interface
 Modern web UI for PDF organization with drag & drop
 """
 
-import os
+import contextlib
 import json
-import shutil
-import webbrowser
+import os
+import secrets
 import threading
-from pathlib import Path
-from datetime import datetime
+import time
+import uuid
+import webbrowser
 from io import BytesIO
-from flask import Flask, render_template, request, jsonify, send_from_directory, session
+from pathlib import Path
+from urllib.parse import urlsplit
+
+from flask import Flask, jsonify, render_template, request, send_from_directory, session
 from werkzeug.utils import secure_filename
+
 from organize_batch import BatchPDFOrganizer
-from pdf_content_analyzer import PDFContentAnalyzer
 from pdf_signature import PDFSignature
 
 app = Flask(__name__)
@@ -23,11 +27,76 @@ app.secret_key = os.urandom(24)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
 app.config['UPLOAD_FOLDER'] = Path.home() / 'pdf_organizer_uploads'
 app.config['UPLOAD_FOLDER'].mkdir(exist_ok=True)
+app.config['SESSION_COOKIE_SAMESITE'] = 'Strict'
 
-# In-memory storage for session data (use Redis in production)
-pending_pdfs = {}
-analysis_results = {}
-signature_uploads = {}  # Store uploaded signatures by session
+# Server-side state per browser session. API keys and file paths never reach the browser;
+# the browser only ever holds opaque upload ids.
+_server_state = {}
+_state_lock = threading.Lock()
+SESSION_IDLE_SECONDS = 12 * 60 * 60
+
+
+def _evict_idle_sessions(now):
+    """Forget idle sessions (and their keys) and delete uploads they never organised. Lock held."""
+    for sid in [
+        s for s, st in _server_state.items() if now - st['last_seen'] > SESSION_IDLE_SECONDS
+    ]:
+        stale = _server_state.pop(sid)
+        for filepath in [*stale['uploads'].values(), *stale['sign_uploads'].values()]:
+            with contextlib.suppress(OSError):  # a locked file must not fail another user's request
+                filepath.unlink(missing_ok=True)
+
+
+def _state():
+    now = time.monotonic()
+    with _state_lock:
+        _evict_idle_sessions(now)
+        sid = session.get('sid')
+        if sid not in _server_state:
+            sid = secrets.token_urlsafe(32)
+            session['sid'] = sid
+            _server_state[sid] = {'api_key': '', 'uploads': {}, 'sign_uploads': {}}
+        _server_state[sid]['last_seen'] = now
+        return _server_state[sid]
+
+
+def _register_upload(registry, folder, file):
+    name = secure_filename(file.filename or '')
+    if not name.lower().endswith('.pdf'):
+        name = 'document.pdf'
+    file_id = uuid.uuid4().hex
+    filepath = folder / f"{file_id}_{name}"
+    file.save(filepath)
+    registry[file_id] = filepath
+    return {'id': file_id, 'filename': name, 'size': filepath.stat().st_size}
+
+
+def _resolve_upload(registry, file_info):
+    """Map a client-supplied upload id to a server-held path; client paths are ignored."""
+    file_id = file_info.get('id') if isinstance(file_info, dict) else None
+    filepath = registry.get(str(file_id))
+    return filepath if filepath is not None and filepath.exists() else None
+
+
+def _display_name(filepath):
+    return filepath.name.split('_', 1)[-1]
+
+
+LOCAL_HOSTNAMES = {'localhost', '127.0.0.1', '::1'}
+
+
+@app.before_request
+def reject_cross_origin_writes():
+    """Stop other websites from driving this localhost API from the user's browser."""
+    # A Host allowlist defeats DNS rebinding, where Origin and Host would otherwise match.
+    if urlsplit(f"//{request.host}").hostname not in LOCAL_HOSTNAMES:
+        return jsonify({'error': 'Unexpected Host header'}), 403
+    if request.method in ('GET', 'HEAD', 'OPTIONS'):
+        return None
+    source = request.headers.get('Origin') or request.headers.get('Referer')
+    if source and urlsplit(source).netloc != request.host:
+        return jsonify({'error': 'Cross-origin request rejected'}), 403
+    return None
 
 
 @app.route('/')
@@ -39,19 +108,24 @@ def index():
 @app.route('/api/settings', methods=['GET', 'POST'])
 def settings():
     """Get or update settings"""
+    state = _state()
     if request.method == 'POST':
-        data = request.json
+        data = request.get_json(silent=True) or {}
         session['ebooks_folder'] = data.get('ebooks_folder')
         session['provider'] = data.get('provider', 'gemini')
-        session['api_key'] = data.get('api_key')
         session['batch_delay'] = data.get('batch_delay', 10)
+        session['content_analysis'] = data.get('content_analysis') is True
+        api_key = str(data.get('api_key') or '').strip()
+        if api_key:
+            state['api_key'] = api_key
 
         return jsonify({'success': True, 'message': 'Settings saved'})
 
     return jsonify({
         'ebooks_folder': session.get('ebooks_folder', ''),
         'provider': session.get('provider', 'gemini'),
-        'api_key': session.get('api_key', ''),
+        'has_api_key': bool(state['api_key']),
+        'content_analysis': session.get('content_analysis', False),
         'batch_delay': session.get('batch_delay', 10)
     })
 
@@ -63,23 +137,12 @@ def upload_pdf():
         return jsonify({'error': 'No files provided'}), 400
 
     files = request.files.getlist('files')
+    uploads = _state()['uploads']
     uploaded = []
 
     for file in files:
         if file and file.filename.lower().endswith('.pdf'):
-            filename = secure_filename(file.filename)
-            filepath = app.config['UPLOAD_FOLDER'] / filename
-            file.save(filepath)
-
-            # Generate unique ID
-            file_id = f"{datetime.now().timestamp()}_{filename}"
-
-            uploaded.append({
-                'id': file_id,
-                'filename': filename,
-                'path': str(filepath),
-                'size': filepath.stat().st_size
-            })
+            uploaded.append(_register_upload(uploads, app.config['UPLOAD_FOLDER'], file))
 
     return jsonify({
         'success': True,
@@ -90,10 +153,11 @@ def upload_pdf():
 @app.route('/api/analyze', methods=['POST'])
 def analyze_pdfs():
     """Analyze uploaded PDFs and suggest categorization"""
-    data = request.json
-    file_paths = data.get('files', [])
+    data = request.get_json(silent=True) or {}
+    file_infos = data.get('files', [])
+    state = _state()
 
-    if not session.get('api_key'):
+    if not state['api_key']:
         return jsonify({'error': 'API key not configured'}), 400
 
     if not session.get('ebooks_folder'):
@@ -104,18 +168,19 @@ def analyze_pdfs():
         organizer = BatchPDFOrganizer(
             downloads_folder=app.config['UPLOAD_FOLDER'],
             ebooks_folder=session.get('ebooks_folder'),
-            api_key=session.get('api_key'),
+            api_key=state['api_key'],
             provider=session.get('provider', 'gemini'),
-            use_content_analysis=True
+            use_content_analysis=session.get('content_analysis', False)
         )
 
         # Get PDF info
         pdf_list = []
-        for file_info in file_paths:
-            pdf_path = Path(file_info['path'])
-            if pdf_path.exists():
+        for file_info in file_infos:
+            pdf_path = _resolve_upload(state['uploads'], file_info)
+            if pdf_path is not None:
                 info = organizer.get_pdf_info(pdf_path)
                 info['id'] = file_info['id']
+                info['filename'] = _display_name(pdf_path)
                 pdf_list.append(info)
 
         # Load categories
@@ -138,7 +203,6 @@ def analyze_pdfs():
             results.append({
                 'id': pdf_info['id'],
                 'filename': pdf_info['filename'],
-                'path': pdf_info['path'],
                 'category': cat_result.get('category', 'Uncategorized'),
                 'confidence': cat_result.get('confidence', 'low'),
                 'rename': cat_result.get('rename'),
@@ -147,17 +211,11 @@ def analyze_pdfs():
                 'approved': False  # User needs to approve
             })
 
-        # Store results for later use
-        session_id = session.get('session_id', str(datetime.now().timestamp()))
-        session['session_id'] = session_id
-        analysis_results[session_id] = results
-
         organizer.cleanup()
 
         return jsonify({
             'success': True,
-            'results': results,
-            'session_id': session_id
+            'results': results
         })
 
     except Exception as e:
@@ -167,17 +225,18 @@ def analyze_pdfs():
 @app.route('/api/organize', methods=['POST'])
 def organize_pdfs():
     """Organize approved PDFs"""
-    data = request.json
+    data = request.get_json(silent=True) or {}
     approved_files = data.get('files', [])
+    state = _state()
 
-    if not session.get('api_key'):
+    if not state['api_key']:
         return jsonify({'error': 'API key not configured'}), 400
 
     try:
         organizer = BatchPDFOrganizer(
             downloads_folder=app.config['UPLOAD_FOLDER'],
             ebooks_folder=session.get('ebooks_folder'),
-            api_key=session.get('api_key'),
+            api_key=state['api_key'],
             provider=session.get('provider', 'gemini')
         )
 
@@ -185,23 +244,28 @@ def organize_pdfs():
         failed = []
 
         for file_info in approved_files:
+            source = _resolve_upload(state['uploads'], file_info)
+            if source is None:
+                name = file_info.get('filename', '') if isinstance(file_info, dict) else ''
+                failed.append({'filename': str(name), 'error': 'Upload not found'})
+                continue
+            filename = _display_name(source)
             try:
                 result = {
-                    'source': file_info['path'],
-                    'filename': file_info['filename'],
-                    'category': file_info['category'],
+                    'source': str(source),
+                    'filename': filename,
+                    'category': file_info.get('category'),
                     'rename_to': file_info.get('rename')
                 }
 
-                organizer.move_pdf(result)
-                organized.append(file_info['filename'])
-
-                # Clean up upload
-                Path(file_info['path']).unlink(missing_ok=True)
+                destination = organizer.move_pdf(result)
+                organizer.log['organized_files'].append({**result, 'destination': str(destination)})
+                organized.append(filename)
+                state['uploads'].pop(file_info['id'], None)
 
             except Exception as e:
                 failed.append({
-                    'filename': file_info['filename'],
+                    'filename': filename,
                     'error': str(e)
                 })
 
@@ -293,7 +357,7 @@ def get_stats():
             'categories': {}
         })
 
-    with open(log_file, 'r', encoding='utf-8') as f:
+    with open(log_file, encoding='utf-8') as f:
         log = json.load(f)
 
     # Count by category
@@ -381,8 +445,6 @@ def upload_signature_image():
             f.write(file_data)
 
         # Store in session
-        session_id = session.get('session_id', str(datetime.now().timestamp()))
-        session['session_id'] = session_id
         session['signature_path'] = str(filepath)
         session['signature_filename'] = filename
 
@@ -393,7 +455,7 @@ def upload_signature_image():
         })
 
     except Exception as e:
-        return jsonify({'error': f'Failed to process signature: {str(e)}'}), 500
+        return jsonify({'error': f'Failed to process signature: {e!s}'}), 500
 
 
 @app.route('/api/signature/upload-pdfs', methods=['POST'])
@@ -403,22 +465,14 @@ def upload_pdfs_for_signing():
         return jsonify({'error': 'No files provided'}), 400
 
     files = request.files.getlist('files')
+    sign_uploads = _state()['sign_uploads']
+    pdf_folder = app.config['UPLOAD_FOLDER'] / 'sign_pdfs'
+    pdf_folder.mkdir(exist_ok=True)
     uploaded = []
 
     for file in files:
         if file and file.filename.lower().endswith('.pdf'):
-            filename = secure_filename(file.filename)
-            pdf_folder = app.config['UPLOAD_FOLDER'] / 'sign_pdfs'
-            pdf_folder.mkdir(exist_ok=True)
-
-            filepath = pdf_folder / filename
-            file.save(filepath)
-
-            uploaded.append({
-                'filename': filename,
-                'path': str(filepath),
-                'size': filepath.stat().st_size
-            })
+            uploaded.append(_register_upload(sign_uploads, pdf_folder, file))
 
     return jsonify({
         'success': True,
@@ -429,7 +483,8 @@ def upload_pdfs_for_signing():
 @app.route('/api/signature/process', methods=['POST'])
 def process_signature():
     """Sign PDFs with configured signature"""
-    data = request.json
+    data = request.get_json(silent=True) or {}
+    sign_uploads = _state()['sign_uploads']
 
     signature_path = session.get('signature_path')
     if not signature_path or not Path(signature_path).exists():
@@ -473,13 +528,16 @@ def process_signature():
 
         # Process each PDF
         for pdf_info in pdf_files:
-            pdf_path = pdf_info['path']
-            if not Path(pdf_path).exists():
+            pdf_path = _resolve_upload(sign_uploads, pdf_info)
+            if pdf_path is None:
                 failed_files.append({
-                    'filename': pdf_info['filename'],
+                    'filename': (
+                        str(pdf_info.get('filename', '')) if isinstance(pdf_info, dict) else ''
+                    ),
                     'error': 'File not found'
                 })
                 continue
+            pdf_info = {'filename': _display_name(pdf_path)}
 
             try:
                 # Output path
@@ -487,12 +545,11 @@ def process_signature():
                 output_path = signed_folder / output_filename
 
                 # Sign PDF
-                result = signer.add_signature_to_pdf(pdf_path, str(output_path))
+                result = signer.add_signature_to_pdf(str(pdf_path), str(output_path))
 
                 if result['success']:
                     signed_files.append({
                         'filename': output_filename,
-                        'path': str(output_path),
                         'total_pages': result['total_pages'],
                         'pages_signed': result['pages_signed']
                     })

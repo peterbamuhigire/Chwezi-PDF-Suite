@@ -2,7 +2,7 @@
 
 ## 🌲 Deep Category Structure Analysis
 
-The PDF Organizer now **fully understands and preserves** your existing multi-level category hierarchy when organizing PDFs.
+The PDF organiser now **fully understands and preserves** your existing multi-level category hierarchy when organizing PDFs.
 
 ---
 

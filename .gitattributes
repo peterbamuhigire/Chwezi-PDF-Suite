@@ -1,0 +1,2 @@
+# The desktop build hashes this manifest byte-for-byte; pin its line endings on every checkout.
+packaging/desktop-suite.toml text eol=crlf

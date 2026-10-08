@@ -14,25 +14,114 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import sys
+import tempfile
 import threading
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from queue import Empty, Queue
-from typing import Callable
 
-from google import genai
 from anthropic import Anthropic
+from google import genai
 from openai import OpenAI
 from pypdf import PdfReader
 
 from pdf_content_analyzer import PDFContentAnalyzer
 
-
 LogCallback = Callable[[str], None]
 ProgressCallback = Callable[[int, int, str], None]
+
+DEFAULT_CATEGORY = "Uncategorized"
+CONSENT_VERSION = 2
+DEFAULT_MODELS = {
+    "gemini": "gemini-3.8-flash",
+    "anthropic": "claude-haiku-5-5",
+    "deepseek": "deepseek-flash",
+}
+WINDOWS_RESERVED_NAMES = frozenset(
+    {"CON", "PRN", "AUX", "NUL"}
+    | {f"COM{i}" for i in range(1, 10)}
+    | {f"LPT{i}" for i in range(1, 10)}
+)
+_ILLEGAL_NAME_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+_MAX_SEGMENT_LENGTH = 150
+
+
+def saved_content_analysis_consent(payload) -> bool:
+    """Opt-ins saved before content analysis became opt-in do not count as consent."""
+    return (
+        isinstance(payload, dict)
+        and payload.get("consent_version") == CONSENT_VERSION
+        and payload.get("use_content_analysis") is True
+    )
+
+
+def sanitize_path_segment(value) -> str | None:
+    """Return one safe folder or file name, or None when nothing usable remains."""
+    if value is None:
+        return None
+    cleaned = _ILLEGAL_NAME_CHARS.sub("_", str(value)).strip().rstrip(". ")
+    if not cleaned or set(cleaned) <= {".", "_"}:
+        return None
+    if cleaned.split(".")[0].upper() in WINDOWS_RESERVED_NAMES:
+        cleaned = f"_{cleaned}"
+    return cleaned[:_MAX_SEGMENT_LENGTH].rstrip(". ")
+
+
+def safe_category_path(category) -> Path:
+    """Turn an untrusted category such as 'A/B/C' into a relative path with no traversal."""
+    parts = re.split(r"[\\/]+", str(category or ""))
+    segments = [segment for segment in map(sanitize_path_segment, parts) if segment]
+    return Path(*segments) if segments else Path(DEFAULT_CATEGORY)
+
+
+def safe_pdf_filename(name, fallback: str) -> str:
+    """Turn an untrusted filename suggestion into a plain '<name>.pdf'."""
+    text = "" if name is None else str(name).strip()
+    if text.lower().endswith(".pdf"):
+        text = text[:-4]
+    stem = sanitize_path_segment(text) or sanitize_path_segment(Path(fallback).stem) or "document"
+    return f"{stem}.pdf"
+
+
+def normalise_categorizations(items, pdf_count: int) -> list[dict]:
+    """Keep only well-formed AI categorisation items, coercing field types."""
+    normalised = []
+    seen = set()
+    for item in items if isinstance(items, list) else []:
+        if not isinstance(item, dict):
+            continue
+        number = item.get("number")
+        if isinstance(number, bool) or (isinstance(number, float) and not number.is_integer()):
+            continue
+        try:
+            number = int(number)
+        except (TypeError, ValueError):
+            continue
+        if not 1 <= number <= pdf_count or number in seen:
+            continue
+        seen.add(number)
+        category = item.get("category")
+        rename = item.get("rename")
+        normalised.append(
+            {
+                "number": number,
+                "category": (
+                    category if isinstance(category, str) and category.strip() else DEFAULT_CATEGORY
+                ),
+                "confidence": (
+                    item.get("confidence")
+                    if item.get("confidence") in {"high", "medium", "low"}
+                    else "low"
+                ),
+                "rename": None if rename is None else str(rename),
+            }
+        )
+    return normalised
 
 
 class BatchPDFOrganizer:
@@ -49,7 +138,7 @@ class BatchPDFOrganizer:
         category_template=None,
         provider="gemini",
         model_name=None,
-        use_content_analysis=True,
+        use_content_analysis=False,
         require_api_key=True,
         logger: LogCallback | None = None,
         progress_callback: ProgressCallback | None = None,
@@ -72,17 +161,14 @@ class BatchPDFOrganizer:
         self.chunk_size = max(1, int(chunk_size or self.DEFAULT_CHUNK_SIZE))
 
         default_template = Path(__file__).resolve().parent / "category_template.json"
-        self.category_template_path = Path(category_template) if category_template else default_template
+        self.category_template_path = (
+            Path(category_template) if category_template else default_template
+        )
         self.content_analyzer = PDFContentAnalyzer() if use_content_analysis else None
 
-        if self.provider == "gemini":
-            self.model_name = model_name or "gemini-1.5-flash"
-        elif self.provider == "anthropic":
-            self.model_name = model_name or "claude-3-5-sonnet-20240620"
-        elif self.provider == "deepseek":
-            self.model_name = model_name or "deepseek-chat"
-        else:
+        if self.provider not in DEFAULT_MODELS:
             raise ValueError(f"Unsupported provider: {provider}")
+        self.model_name = model_name or DEFAULT_MODELS[self.provider]
 
         if self.require_api_key and not self.api_key:
             raise ValueError("API key required for the selected provider")
@@ -130,27 +216,46 @@ class BatchPDFOrganizer:
         self.cleanup()
 
     def load_log(self):
-        if self.log_file.exists():
-            with open(self.log_file, "r", encoding="utf-8") as handle:
-                self.log = json.load(handle)
-        else:
-            self.log = {
-                "organized_files": [],
-                "category_map": {},
-                "last_run": None,
-            }
+        self.log = {
+            "organized_files": [],
+            "category_map": {},
+            "last_run": None,
+        }
+        if not self.log_file.exists():
+            return
+        try:
+            with open(self.log_file, encoding="utf-8") as handle:
+                loaded = json.load(handle)
+            if not isinstance(loaded, dict):
+                raise ValueError("log root is not an object")
+        except (OSError, ValueError) as exc:
+            stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            backup = self.log_file.with_name(f"{self.log_file.stem}.corrupt-{stamp}.json")
+            os.replace(self.log_file, backup)
+            self._emit(f"Organization log was unreadable ({exc}); preserved it as {backup.name}")
+            return
+        self.log.update(loaded)
+        self.log.setdefault("organized_files", [])
 
     def save_log(self):
         self.log["last_run"] = datetime.now().isoformat()
         self.log_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.log_file, "w", encoding="utf-8") as handle:
-            json.dump(self.log, handle, indent=2, ensure_ascii=False)
+        handle = tempfile.NamedTemporaryFile(  # noqa: SIM115 - delete=False temp file, closed then os.replace()d below
+            "w", encoding="utf-8", dir=self.log_file.parent, suffix=".tmp", delete=False
+        )
+        try:
+            with handle:
+                json.dump(self.log, handle, indent=2, ensure_ascii=False)
+            os.replace(handle.name, self.log_file)
+        except BaseException:
+            Path(handle.name).unlink(missing_ok=True)
+            raise
 
     def analyze_existing_structure(self):
         self._emit("Analyzing existing ebooks folder structure...")
         categories = {}
 
-        for root, dirs, files in os.walk(self.ebooks_folder):
+        for root, _dirs, files in os.walk(self.ebooks_folder):
             rel_path = Path(root).relative_to(self.ebooks_folder)
             if rel_path == Path("."):
                 continue
@@ -175,7 +280,7 @@ class BatchPDFOrganizer:
             return None
 
         try:
-            with open(template_path, "r", encoding="utf-8") as handle:
+            with open(template_path, encoding="utf-8") as handle:
                 data = json.load(handle)
         except Exception as exc:
             self._emit(f"Warning: failed to load category template {template_path}: {exc}")
@@ -264,7 +369,9 @@ class BatchPDFOrganizer:
 
     def batch_categorize_all(self, pdf_list, categories):
         if not self.client:
-            raise RuntimeError("AI client not initialized. Provide an API key before organizing PDFs.")
+            raise RuntimeError(
+                "AI client not initialized. Provide an API key before organizing PDFs."
+            )
 
         category_text = self.build_category_text(categories)
         pdf_descriptions = []
@@ -299,7 +406,7 @@ Return a JSON array like this:
   {{"number": 2, "category": "Business/Finance", "confidence": "medium", "rename": null}}
 ]
 
-Return ONLY the JSON array."""
+Return ONLY the JSON array."""  # noqa: E501 - prompt text kept verbatim
 
         self._emit(f"Sending batch request to {self.provider.title()} for {len(pdf_list)} PDFs...")
 
@@ -311,12 +418,16 @@ Return ONLY the JSON array."""
             )
             response_text = (message.text or "").strip()
         elif self.provider == "anthropic":
+            # Current Claude models reject sampling parameters, and thinking shares max_tokens.
+            # Low effort suits this high-volume classification route.
             response = self.client.messages.create(
                 model=self.model_name,
-                max_tokens=8000,
-                temperature=0.2,
+                max_tokens=16000,
+                output_config={"effort": "low"},
                 messages=[{"role": "user", "content": prompt}],
             )
+            if response.stop_reason in {"refusal", "max_tokens"}:
+                self._emit(f"Claude stopped early ({response.stop_reason}).")
             response_text = "".join(
                 block.text for block in (response.content or []) if hasattr(block, "text")
             ).strip()
@@ -354,8 +465,14 @@ Return ONLY the JSON array."""
             self._emit(f"Expected a JSON list, got {type(categorizations).__name__}.")
             return self.simple_fallback_categorization(pdf_list)
 
-        self._emit(f"Received categorizations for {len(categorizations)} PDFs")
-        return categorizations
+        valid = normalise_categorizations(categorizations, len(pdf_list))
+        if not valid:
+            self._emit("AI response contained no usable categorizations.")
+            return self.simple_fallback_categorization(pdf_list)
+        if len(valid) < len(categorizations):
+            self._emit(f"Ignored {len(categorizations) - len(valid)} malformed AI item(s)")
+        self._emit(f"Received categorizations for {len(valid)} PDFs")
+        return valid
 
     def simple_fallback_categorization(self, pdf_list):
         keywords = {
@@ -395,26 +512,25 @@ Return ONLY the JSON array."""
 
     def find_pdfs(self):
         pdf_files = []
-        for root, dirs, files in os.walk(self.downloads_folder):
+        for root, _dirs, files in os.walk(self.downloads_folder):
             for file_name in files:
                 if file_name.lower().endswith(".pdf"):
                     pdf_files.append(Path(root) / file_name)
         return pdf_files
 
     def move_pdf(self, result):
+        """Move one PDF into the library; category and rename are untrusted AI output."""
         source = Path(result["source"])
-        category = result.get("category", "Uncategorized")
-        category_path = self.ebooks_folder / category
-        category_path.mkdir(parents=True, exist_ok=True)
-
-        if result.get("rename_to"):
-            filename = result["rename_to"]
-            if not filename.endswith(".pdf"):
-                filename += ".pdf"
-        else:
-            filename = result["filename"]
+        library = self.ebooks_folder.resolve()
+        category_path = library / safe_category_path(result.get("category"))
+        filename = safe_pdf_filename(
+            result.get("rename_to") or result["filename"], result["filename"]
+        )
 
         destination = category_path / filename
+        if not destination.resolve().is_relative_to(library):
+            raise ValueError(f"Refusing to move outside the library: {destination}")
+        category_path.mkdir(parents=True, exist_ok=True)
         if destination.exists():
             base = destination.stem
             ext = destination.suffix
@@ -425,6 +541,7 @@ Return ONLY the JSON array."""
 
         shutil.move(str(source), str(destination))
         self._emit(f"Moved: {source.name} -> {destination}")
+        return destination
 
     def organize_pdfs(self):
         self._emit(f"Scanning {self.downloads_folder} for PDFs...")
@@ -458,7 +575,12 @@ Return ONLY the JSON array."""
             all_categorizations.extend(categorizations)
 
         if not all_categorizations:
-            self.summary = {"total_files": total_files, "processed": 0, "moved": 0, "dry_run": self.dry_run}
+            self.summary = {
+                "total_files": total_files,
+                "processed": 0,
+                "moved": 0,
+                "dry_run": self.dry_run,
+            }
             self._emit("Categorization failed")
             return []
 
@@ -490,22 +612,34 @@ Return ONLY the JSON array."""
             self._emit(f"{category}: {count} file(s)")
 
         moved_count = 0
+        failed = []
         if self.dry_run:
             self._emit("Dry run enabled. No files were moved.")
         else:
             self._emit("Moving files...")
-            for index, result in enumerate(results, 1):
-                self._progress(index, len(results), f"Moving {Path(result['source']).name}")
-                self.move_pdf(result)
-                moved_count += 1
-            self.log["organized_files"].extend(results)
-            self.save_log()
+            try:
+                for index, result in enumerate(results, 1):
+                    self._progress(index, len(results), f"Moving {Path(result['source']).name}")
+                    try:
+                        destination = self.move_pdf(result)
+                    except Exception as exc:
+                        failed.append({**result, "error": str(exc)})
+                        self._emit(f"Failed to move {Path(result['source']).name}: {exc}")
+                        continue
+                    self.log["organized_files"].append({**result, "destination": str(destination)})
+                    moved_count += 1
+            finally:
+                if moved_count:
+                    self.save_log()
             self._emit(f"Organized {moved_count} PDFs")
+            if failed:
+                self._emit(f"{len(failed)} PDF(s) could not be moved and were left in place")
 
         self.summary = {
             "total_files": total_files,
             "processed": len(results),
             "moved": moved_count,
+            "failed": failed,
             "dry_run": self.dry_run,
             "categories": dict(category_counts),
         }
@@ -533,7 +667,7 @@ def launch_gui():
             self.provider = tk.StringVar(value="deepseek")
             self.category_template = tk.StringVar()
             self.dry_run = tk.BooleanVar(value=True)
-            self.use_content_analysis = tk.BooleanVar(value=True)
+            self.use_content_analysis = tk.BooleanVar(value=False)
             self.status_text = tk.StringVar(value="Idle")
             self.progress_value = tk.DoubleVar(value=0.0)
             self.log_queue = Queue()
@@ -546,8 +680,8 @@ def launch_gui():
             self.root.after(100, self._drain_queue)
 
         def _build(self):
-            outer_pad = dict(padx=22, pady=10)
-            card_pad = dict(padx=0, pady=8)
+            outer_pad = {"padx": 22, "pady": 10}
+            card_pad = {"padx": 0, "pady": 8}
 
             main = ttk.Frame(self.root, padding=(22, 18), style="App.TFrame")
             main.grid(row=0, column=0, sticky="nsew")
@@ -559,25 +693,40 @@ def launch_gui():
             hero = ttk.Frame(main, padding=(18, 16), style="Card.TFrame")
             hero.grid(row=0, column=0, sticky="ew", **card_pad)
             hero.columnconfigure(0, weight=1)
-            ttk.Label(hero, text="PDF Organizer", style="Title.TLabel").grid(row=0, column=0, sticky="w")
+            ttk.Label(hero, text="PDF Organizer", style="Title.TLabel").grid(
+                row=0, column=0, sticky="w"
+            )
             ttk.Label(
                 hero,
-                text="Sort a folder of PDFs in batches. Start with a dry run to inspect the proposed categories before any file is moved.",
+                text=(
+                    "Sort a folder of PDFs in batches. Start with a dry run to inspect the "
+                    "proposed categories before any file is moved."
+                ),
                 style="Muted.TLabel",
                 wraplength=650,
             ).grid(row=1, column=0, sticky="w", pady=(5, 0))
-            self.status_badge = ttk.Label(hero, textvariable=self.status_text, style="Status.TLabel")
+            self.status_badge = ttk.Label(
+                hero, textvariable=self.status_text, style="Status.TLabel"
+            )
             self.status_badge.grid(row=0, column=1, rowspan=2, sticky="e", padx=(18, 0))
 
-            files = ttk.LabelFrame(main, text="Folders and category template", padding=14, style="Card.TLabelframe")
+            files = ttk.LabelFrame(
+                main, text="Folders and category template", padding=14, style="Card.TLabelframe"
+            )
             files.grid(row=1, column=0, sticky="ew", **card_pad)
             files.columnconfigure(1, weight=1)
 
-            self._file_row(files, 0, "Downloads folder:", self.downloads_path, self._browse_downloads)
+            self._file_row(
+                files, 0, "Downloads folder:", self.downloads_path, self._browse_downloads
+            )
             self._file_row(files, 1, "Ebooks folder:", self.ebooks_path, self._browse_ebooks)
-            self._file_row(files, 2, "Category template:", self.category_template, self._browse_template)
+            self._file_row(
+                files, 2, "Category template:", self.category_template, self._browse_template
+            )
 
-            options = ttk.LabelFrame(main, text="Categorization settings", padding=14, style="Card.TLabelframe")
+            options = ttk.LabelFrame(
+                main, text="Categorization settings", padding=14, style="Card.TLabelframe"
+            )
             options.grid(row=2, column=0, sticky="ew", **card_pad)
             options.columnconfigure(1, weight=1)
 
@@ -594,7 +743,9 @@ def launch_gui():
             ttk.Label(options, text="API key:").grid(row=1, column=0, sticky="w")
             self.api_entry = ttk.Entry(options, textvariable=self.api_key, show="*", width=52)
             self.api_entry.grid(row=1, column=1, sticky="ew", padx=4, pady=2)
-            ttk.Button(options, text="Show/Hide", command=self._toggle_api_key).grid(row=1, column=2, padx=4)
+            ttk.Button(options, text="Show/Hide", command=self._toggle_api_key).grid(
+                row=1, column=2, padx=4
+            )
 
             ttk.Checkbutton(
                 options,
@@ -604,16 +755,22 @@ def launch_gui():
             ).grid(row=2, column=0, columnspan=3, sticky="w", pady=2)
             ttk.Checkbutton(
                 options,
-                text="Use PDF content analysis for better categorization and renaming",
+                text="Send text previews of unclear files to the AI provider (better renaming)",
                 variable=self.use_content_analysis,
             ).grid(row=3, column=0, columnspan=3, sticky="w", pady=2)
 
             actions = ttk.Frame(main, style="App.TFrame")
             actions.grid(row=3, column=0, sticky="ew", pady=(12, 6))
-            self.run_button = ttk.Button(actions, text="Start dry run", command=self._run, style="Primary.TButton")
+            self.run_button = ttk.Button(
+                actions, text="Start dry run", command=self._run, style="Primary.TButton"
+            )
             self.run_button.pack(side="left")
-            ttk.Button(actions, text="Save settings", command=self._save_settings).pack(side="left", padx=(8, 0))
-            ttk.Button(actions, text="View organization log", command=self._view_log).pack(side="left", padx=(8, 0))
+            ttk.Button(actions, text="Save settings", command=self._save_settings).pack(
+                side="left", padx=(8, 0)
+            )
+            ttk.Button(actions, text="View organization log", command=self._view_log).pack(
+                side="left", padx=(8, 0)
+            )
             self.theme_button = ttk.Button(actions, command=self._toggle_theme)
             self.theme_button.pack(side="right")
             self._sync_run_button()
@@ -622,21 +779,31 @@ def launch_gui():
             progress_frame = ttk.Frame(main, style="App.TFrame")
             progress_frame.grid(row=4, column=0, sticky="ew", **outer_pad)
             progress_frame.columnconfigure(0, weight=1)
-            ttk.Label(progress_frame, text="Progress", style="Subtitle.TLabel").grid(row=0, column=0, sticky="w")
-            self.progress = ttk.Progressbar(progress_frame, maximum=100, variable=self.progress_value)
+            ttk.Label(progress_frame, text="Progress", style="Subtitle.TLabel").grid(
+                row=0, column=0, sticky="w"
+            )
+            self.progress = ttk.Progressbar(
+                progress_frame, maximum=100, variable=self.progress_value
+            )
             self.progress.grid(row=1, column=0, sticky="ew", pady=(5, 0))
 
             log_frame = ttk.LabelFrame(main, text="Activity", padding=14, style="Card.TLabelframe")
             log_frame.grid(row=5, column=0, sticky="nsew", **card_pad)
             log_frame.columnconfigure(0, weight=1)
             log_frame.rowconfigure(0, weight=1)
-            self.log_text = scrolledtext.ScrolledText(log_frame, height=18, font=("Cascadia Mono", 9))
+            self.log_text = scrolledtext.ScrolledText(
+                log_frame, height=18, font=("Cascadia Mono", 9)
+            )
             self.log_text.grid(row=0, column=0, sticky="nsew")
             style_text_widget(self.log_text, self.palette)
 
         def _file_row(self, parent, row, label, variable, command):
-            ttk.Label(parent, text=label, style="Card.TLabel").grid(row=row, column=0, sticky="w", pady=4)
-            ttk.Entry(parent, textvariable=variable).grid(row=row, column=1, sticky="ew", padx=10, pady=4)
+            ttk.Label(parent, text=label, style="Card.TLabel").grid(
+                row=row, column=0, sticky="w", pady=4
+            )
+            ttk.Entry(parent, textvariable=variable).grid(
+                row=row, column=1, sticky="ew", padx=10, pady=4
+            )
             ttk.Button(parent, text="Browse", command=command).grid(row=row, column=2, pady=4)
 
         def _browse_downloads(self):
@@ -669,6 +836,7 @@ def launch_gui():
                 "api_key": self.api_key.get().strip(),
                 "category_template": self.category_template.get(),
                 "use_content_analysis": self.use_content_analysis.get(),
+                "consent_version": CONSENT_VERSION,
                 "dry_run": self.dry_run.get(),
             }
             try:
@@ -687,17 +855,19 @@ def launch_gui():
             if not settings_file.exists():
                 return
             try:
-                with open(settings_file, "r", encoding="utf-8") as handle:
+                with open(settings_file, encoding="utf-8") as handle:
                     payload = json.load(handle)
                 self.downloads_path.set(payload.get("downloads_path", self.downloads_path.get()))
                 self.ebooks_path.set(payload.get("ebooks_path", ""))
                 self.provider.set(payload.get("provider", self.provider.get()))
                 self.api_key.set(payload.get("api_key", ""))
                 self.category_template.set(payload.get("category_template", ""))
-                self.use_content_analysis.set(payload.get("use_content_analysis", True))
+                self.use_content_analysis.set(saved_content_analysis_consent(payload))
                 self.dry_run.set(payload.get("dry_run", True))
-            except Exception:
-                pass
+            except (OSError, ValueError, AttributeError, tk.TclError) as exc:
+                self.log_queue.put(
+                    ("log", f"Saved settings could not be loaded ({exc}); using defaults.")
+                )
 
         def _view_log(self):
             log_file = Path(self.ebooks_path.get().strip()) / "organization_log.json"
@@ -712,7 +882,7 @@ def launch_gui():
             text = scrolledtext.ScrolledText(window, font=("Consolas", 9))
             text.pack(fill="both", expand=True, padx=8, pady=8)
             style_text_widget(text, self.palette)
-            with open(log_file, "r", encoding="utf-8") as handle:
+            with open(log_file, encoding="utf-8") as handle:
                 text.insert("1.0", json.dumps(json.load(handle), indent=2, ensure_ascii=False))
             text.configure(state="disabled")
 
@@ -724,7 +894,9 @@ def launch_gui():
             self.status_text.set(value)
 
         def _sync_run_button(self):
-            self.run_button.configure(text="Preview organization" if self.dry_run.get() else "Organize PDFs")
+            self.run_button.configure(
+                text="Preview organization" if self.dry_run.get() else "Organize PDFs"
+            )
 
         def _sync_theme_button(self):
             next_theme = "light" if self.theme_mode == "dark" else "dark"
@@ -751,7 +923,9 @@ def launch_gui():
                 messagebox.showerror("Missing", "Please select the Downloads folder.")
                 return
             if not Path(downloads).is_dir():
-                messagebox.showerror("Folder not found", "The selected Downloads folder does not exist.")
+                messagebox.showerror(
+                    "Folder not found", "The selected Downloads folder does not exist."
+                )
                 return
             if not ebooks:
                 messagebox.showerror("Missing", "Please select the Ebooks folder.")
@@ -801,7 +975,10 @@ def launch_gui():
                     log_callback(f"Dry run complete. Reviewed {summary.get('processed', 0)} PDFs.")
                 else:
                     log_callback(f"Complete. Organized {summary.get('moved', 0)} PDFs.")
-                self.log_queue.put(("status", "Done"))
+                failed = summary.get("failed", [])
+                self.log_queue.put(
+                    ("status", f"Done with {len(failed)} failure(s)" if failed else "Done")
+                )
                 self.log_queue.put(("done", results))
             except Exception as exc:
                 self.log_queue.put(("log", f"ERROR: {exc}"))
@@ -839,22 +1016,33 @@ def run_cli(args):
         provider=args.provider,
         dry_run=args.dry_run,
         category_template=args.category_template,
-        use_content_analysis=not args.no_content_analysis,
+        use_content_analysis=args.content_analysis,
     ) as organizer:
         results = organizer.organize_pdfs()
+        if organizer.summary.get("failed"):
+            return 1
         return 0 if results or organizer.summary.get("total_files", 0) == 0 else 1
 
 
 def build_arg_parser():
     parser = argparse.ArgumentParser(description="Batch PDF organizer with CLI and GUI.")
     parser.add_argument("--gui", action="store_true", help="Launch the organizer GUI")
-    parser.add_argument("--downloads", default=str(Path.home() / "Downloads"), help="Downloads folder to scan")
+    parser.add_argument(
+        "--downloads", default=str(Path.home() / "Downloads"), help="Downloads folder to scan"
+    )
     parser.add_argument("--ebooks", help="Ebooks folder destination")
-    parser.add_argument("--provider", choices=["gemini", "anthropic", "deepseek"], default="deepseek")
+    parser.add_argument(
+        "--provider", choices=["gemini", "anthropic", "deepseek"], default="deepseek"
+    )
     parser.add_argument("--api-key", help="API key for the selected provider")
     parser.add_argument("--dry-run", action="store_true", help="Preview only; do not move files")
     parser.add_argument("--category-template", help="Optional category template JSON file")
-    parser.add_argument("--no-content-analysis", action="store_true", help="Disable PDF text analysis")
+    parser.add_argument(
+        "--content-analysis",
+        action="store_true",
+        help="Send text previews of unclear files to the AI provider (off by default)",
+    )
+    parser.add_argument("--no-content-analysis", action="store_true", help=argparse.SUPPRESS)
     return parser
 
 

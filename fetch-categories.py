@@ -1,11 +1,12 @@
-from pathlib import Path
-import os, json
+import json
+import os
 from datetime import datetime
+from pathlib import Path
 
 ebooks_root = Path(".").resolve()
 
 categories = []
-for root, dirs, files in os.walk(ebooks_root):
+for root, _dirs, files in os.walk(ebooks_root):
     root_path = Path(root)
     if root_path == ebooks_root:
         continue

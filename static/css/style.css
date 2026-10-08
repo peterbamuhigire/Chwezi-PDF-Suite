@@ -11,8 +11,10 @@
     --warning: #825500;
     --warning-soft: #f5e7c7;
     --secondary: #53666b;
+    /* chwezi-slop-disable-next-line ai-beige-ground -- Claude kaizen review 2026-10-08: warm paper ground is the documented direction in docs/style-brief.md */
     --bg: #f5f1e8;
     --card-bg: #fffdf7;
+    /* chwezi-slop-disable-next-line ai-beige-ground -- Claude kaizen review 2026-10-08: sunken paper tone from docs/style-brief.md token contract */
     --surface-sunken: #eae4d7;
     --surface-hover: #e3eee9;
     --text: #17252b;
@@ -186,13 +188,6 @@ body {
     font-size: clamp(2rem, 4vw, 3rem);
     line-height: 1.02;
     letter-spacing: -0.035em;
-}
-
-.eyebrow {
-    color: var(--primary);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
 }
 
 .tagline {
@@ -510,6 +505,20 @@ body {
     color: var(--text);
 }
 
+.form-group .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.checkbox-label input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary);
+}
+
 .input {
     width: 100%;
     padding: 12px;
@@ -579,6 +588,7 @@ body {
 
 .folder-children {
     margin-left: 20px;
+    /* chwezi-slop-disable-next-line decorative-side-stripe -- Claude kaizen review 2026-10-08: functional tree guide showing folder nesting depth */
     border-left: 2px solid var(--border);
     padding-left: 10px;
 }
@@ -681,6 +691,7 @@ body {
     box-shadow: var(--shadow-lg);
     min-width: 300px;
     animation: slideIn 0.3s ease;
+    /* chwezi-slop-disable-next-line decorative-side-stripe -- Claude kaizen review 2026-10-08: status colour paired with a per-type icon and text in showToast */
     border-left: 4px solid var(--primary);
     display: flex;
     align-items: center;

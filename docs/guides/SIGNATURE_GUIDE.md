@@ -1,8 +1,8 @@
 # PDF Signature Guide
 
-This guide documents one PDF-specific tool inside the broader `pyPDFLibrarianSort` Python tools workspace.
+This guide documents one PDF-specific tool inside the Chwezi Document Suite.
 
-Complete guide to signing PDFs with pyPDFLibrarianSort.
+Complete guide to signing PDFs with the Chwezi Document Suite.
 
 ## Overview
 

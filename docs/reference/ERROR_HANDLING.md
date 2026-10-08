@@ -2,7 +2,7 @@
 
 ## Common Errors and Solutions
 
-### âŒ "unsupported operand type(s) for /: 'WindowsPath' and 'NoneType'"
+### ❌ "unsupported operand type(s) for /: 'WindowsPath' and 'NoneType'"
 
 **What it means:** The AI failed to provide a category path, or returned None/empty.
 
@@ -18,9 +18,8 @@
 1. **Check your API key:**
 
    ```bash
-   # Verify it's set
-   echo %GEMINI_API_KEY%  # Windows
-   echo $GEMINI_API_KEY   # Mac/Linux
+   # Keys are NOT read from environment variables.
+   # Enter the key in the GUI or pass --api-key.
    ```
 
 2. **Check internet connection:**
@@ -39,7 +38,7 @@
 
 ---
 
-### âŒ "No module named 'pdfplumber'"
+### ❌ "No module named 'pdfplumber'"
 
 **What it means:** Dependencies not installed
 
@@ -50,25 +49,25 @@
 INSTALL_DEPENDENCIES.bat
 
 # Or manually:
-pip install pdfplumber pypdf google-genai
+python -m pip install -r requirements.txt
 ```
 
 ---
 
-### âŒ "Python is not recognized..."
+### ❌ "Python is not recognized..."
 
 **What it means:** Python not in PATH
 
 **Solution:**
 
 1. Reinstall Python from <https://python.org>
-2. âœ… CHECK "Add Python to PATH" during installation
+2. ✅ CHECK "Add Python to PATH" during installation
 3. Restart computer
 4. Try again
 
 ---
 
-### âŒ "Could not extract text from [file].pdf"
+### ❌ "Could not extract text from [file].pdf"
 
 **What it means:** PDF is image-based (scanned) or encrypted
 
@@ -91,7 +90,7 @@ pip install pdfplumber pypdf google-genai
 
 ---
 
-### âŒ "Permission denied" when moving files
+### ❌ "Permission denied" when moving files
 
 **What it means:** File in use or no write permission
 
@@ -103,7 +102,7 @@ pip install pdfplumber pypdf google-genai
 
 2. **Check permissions:**
    - Ensure you have write access to ebooks folder
-   - Try running as administrator (right-click â†’ Run as Administrator)
+   - Try running as administrator (right-click → Run as Administrator)
 
 3. **Check antivirus:**
    - Temporarily disable if it's blocking
@@ -111,28 +110,17 @@ pip install pdfplumber pypdf google-genai
 
 ---
 
-### âŒ "API key not found"
+### ❌ "API key not found"
 
-**What it means:** GEMINI_API_KEY not set
+**What it means:** No API key was supplied (keys are not read from environment variables)
 
 **Solutions:**
 
-1. **Set environment variable:**
-
-   ```bash
-   # Windows (Command Prompt)
-   setx GEMINI_API_KEY "your-key-here"
-   
-   # Windows (PowerShell)
-   $env:GEMINI_API_KEY = "your-key-here"
-   [Environment]::SetEnvironmentVariable("GEMINI_API_KEY", "your-key-here", "User")
-   ```
-
-2. **Or enter in GUI:**
+1. **Enter it in the GUI:**
    - Just type it in the API Key field
-   - It will be saved to settings
+   - It is saved to your user settings only if you choose to save settings
 
-3. **Or pass as argument:**
+2. **Or pass as argument:**
 
    ```bash
    python organize_batch.py --ebooks "F:\ebooks" --api-key "your-key"
@@ -140,7 +128,7 @@ pip install pdfplumber pypdf google-genai
 
 ---
 
-### âŒ "Categorization error: 401 Unauthorized"
+### ❌ "Categorization error: 401 Unauthorized"
 
 **What it means:** Invalid API key
 
@@ -157,7 +145,7 @@ pip install pdfplumber pypdf google-genai
 
 ---
 
-### âš ï¸ "Warning: AI response missing category_path"
+### ⚠️ "Warning: AI response missing category_path"
 
 **What it means:** AI returned incomplete response
 
@@ -178,7 +166,7 @@ pip install pdfplumber pypdf google-genai
 
 ---
 
-### âŒ "Could not parse AI response as JSON"
+### ❌ "Could not parse AI response as JSON"
 
 **What it means:** AI returned malformed JSON
 
@@ -210,11 +198,11 @@ pip install pdfplumber pypdf google-genai
 
 The tool now includes automatic error recovery:
 
-1. **Missing category_path** â†’ Uses "Uncategorized"
-2. **JSON parse error** â†’ Uses "Uncategorized"
-3. **File move fails** â†’ Logs error, continues with next file
-4. **Duplicate filename** â†’ Adds "_1", "_2", etc.
-5. **Invalid characters** â†’ Automatically cleaned from filenames
+1. **Missing category_path** → Uses "Uncategorized"
+2. **JSON parse error** → Uses "Uncategorized"
+3. **File move fails** → Logs error, continues with next file
+4. **Duplicate filename** → Adds "_1", "_2", etc.
+5. **Invalid characters** → Automatically cleaned from filenames
 
 ### Logs
 
@@ -237,49 +225,49 @@ Check this file to see:
 
 ### Before Running
 
-1. âœ… **Dry run first:**
+1. ✅ **Dry run first:**
 
    ```bash
    python organize_batch.py --ebooks "F:\ebooks" --api-key "your-key" --dry-run
    ```
 
-2. âœ… **Close all PDFs:**
+2. ✅ **Close all PDFs:**
    - Exit PDF readers
    - Close browsers with PDFs open
 
-3. âœ… **Check API key:**
+3. ✅ **Check API key:**
    - Verify it's set and valid
    - Test with a small batch first
 
-4. âœ… **Backup important files:**
+4. ✅ **Backup important files:**
    - Just in case!
    - Or use dry-run mode
 
 ### During Operation
 
-1. ðŸ“Š **Watch for warnings:**
+1. 📊 **Watch for warnings:**
    - Yellow warnings are informational
    - Red errors need attention
 
-2. ðŸ”„ **Don't interrupt:**
+2. 🔄 **Don't interrupt:**
    - Let it finish processing
    - Ctrl+C if you need to stop
 
-3. ðŸ“ **Review summary:**
+3. 📝 **Review summary:**
    - Check categorizations before confirming
    - Verify renames look correct
 
 ### After Running
 
-1. âœ… **Verify results:**
+1. ✅ **Verify results:**
    - Spot-check a few categorized files
    - Make sure they're in right places
 
-2. ðŸ“‹ **Check log:**
+2. 📋 **Check log:**
    - Review organization_log.json
    - Look for any errors
 
-3. ðŸ—‚ï¸ **Manual adjustments:**
+3. 🗂️ **Manual adjustments:**
    - Move any mis-categorized files
    - Update structure if needed
 
@@ -319,9 +307,6 @@ pip list | grep generativeai
 pip list | grep pdfplumber
 pip list | grep pypdf
 
-# Check API key (doesn't show full key)
-python -c "import os; print('Set' if os.getenv('GEMINI_API_KEY') else 'Not Set')"
-
 # Test PDF reading
 python -c "from pypdf import PdfReader; print('PDF library works')"
 
@@ -340,10 +325,18 @@ python -c "import google.genai, pdfplumber, pypdf; print('All imports OK')"
 | PermissionError | No write access | Close files, check permissions |
 | JSONDecodeError | AI response invalid | Retry, check API status |
 | ConnectionError | No internet | Check connection |
-| 401 Unauthorized | Invalid API key | Verify key at aistudio.google.com |
+| 401 Unauthorized | Invalid API key | Verify key at your AI provider console (for Gemini: aistudio.google.com) |
 | 429 Too Many Requests | Rate limit hit | Wait and retry |
 | WindowsPath/NoneType | AI returned no category | Fixed in latest version |
 
 ---
 
 **Remember:** The tool now has robust error handling and will continue processing even if individual files fail! Check the "Uncategorized" folder for any files that couldn't be categorized automatically.
+
+---
+
+## Run behaviour
+
+- One failing file no longer stops an organiser run; the remaining files are still processed.
+- The command-line organiser exits with a non-zero status if any file failed, so scripts can detect partial failures.
+- AI-suggested folders and filenames are sanitised and confined to the library folder.

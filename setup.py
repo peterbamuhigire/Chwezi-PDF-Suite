@@ -4,8 +4,8 @@ Setup script for PDF Organizer
 Helps with initial configuration and testing
 """
 
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -86,8 +86,12 @@ def configure_folders():
     
     config = {}
     if config_file.exists():
-        with open(config_file, 'r') as f:
-            config = json.load(f)
+        try:
+            with open(config_file, encoding="utf-8") as f:
+                config = json.load(f)
+        except (OSError, ValueError) as exc:
+            print(f"   Existing settings could not be read ({exc}); starting fresh.")
+            config = {}
     
     # Downloads folder
     print("\n1. Downloads Folder")
@@ -149,7 +153,7 @@ def run_test():
     
     print("Testing PDF organizer import...")
     try:
-        from organize_batch import BatchPDFOrganizer
+        import organize_batch  # noqa: F401  (the import itself is the test)
         print("✅ PDF organizer module loaded successfully")
         return True
     except Exception as e:

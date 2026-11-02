@@ -1,6 +1,6 @@
 # Security Policy
 
-Chwezi Document Suite is pre-alpha software. It processes untrusted, structurally complex
+Chwezi PDF Suite is pre-alpha software. It processes untrusted, structurally complex
 files and should not yet be deployed as an internet-facing service.
 
 ## Reporting a vulnerability

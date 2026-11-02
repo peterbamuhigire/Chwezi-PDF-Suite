@@ -1,4 +1,4 @@
-# Chwezi Document Suite Summary
+# Chwezi PDF Suite Summary
 
 ## Scope
 

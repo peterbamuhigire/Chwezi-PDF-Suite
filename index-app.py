@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Chwezi Document Suite launcher for source and frozen installations."""
+"""Chwezi PDF Suite launcher for source and frozen installations."""
 
 from __future__ import annotations
 
@@ -264,7 +264,7 @@ class App(ctk.CTk):
         self.icons = IconStore()
         self.icons.apply_window_icon(self, "app-chwezi-document-suite")
         self.withdraw()
-        self.title("Chwezi Document Suite")
+        self.title("Chwezi PDF Suite")
         self.resizable(False, False)
         self._build()
         self.update_idletasks()
@@ -294,7 +294,7 @@ class App(ctk.CTk):
         ).pack(side="left", padx=(0, 12))
         ctk.CTkLabel(
             title_row,
-            text="Chwezi Document Suite",
+            text="Chwezi PDF Suite",
             text_color=colour("text_primary"),
             font=ctk.CTkFont(family=DISPLAY_FONT, size=30, weight="bold"),
         ).pack(side="left")

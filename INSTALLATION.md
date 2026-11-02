@@ -1,6 +1,6 @@
 # Installation
 
-Chwezi Document Suite currently supports source installations for development and evaluation.
+Chwezi PDF Suite currently supports source installations for development and evaluation.
 Published packages and desktop installers do not exist yet.
 
 ## Requirements

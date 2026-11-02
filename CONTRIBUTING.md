@@ -1,6 +1,6 @@
 # Contributing
 
-Chwezi Document Suite is being migrated incrementally. Start from an issue or a narrowly scoped
+Chwezi PDF Suite is being migrated incrementally. Start from an issue or a narrowly scoped
 change, preserve legacy behaviour with characterization tests, and avoid adding processing logic
 to interface layers.
 

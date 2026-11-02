@@ -15,7 +15,7 @@ public release line begins.
 
 ### Changed
 
-- Product-facing name is now Chwezi Document Suite.
+- Product, package, launcher and release artifact names now use Chwezi PDF Suite.
 - Runtime package auto-installation is disabled in transitional launchers.
 - Content analysis (sending text previews of unclear PDFs to the AI provider) is now off by
   default everywhere. Opt in with the GUI or web checkbox, or `--content-analysis` on the
@@ -25,6 +25,9 @@ public release line begins.
 - Documentation states costs as API-call counts instead of unsourced dollar figures.
 
 ### Fixed
+
+- Retry truncated DeepSeek classifications in smaller batches; stop invalid or incomplete
+  classification before moving PDFs.
 
 - AI categorisation no longer defaults to retired models (`gemini-1.5-flash`, shut down
   2025-09-29; `claude-3-5-sonnet-20240620`, retired 2025-10-28; `deepseek-chat`, deprecated

@@ -16,7 +16,7 @@ from chwezi_docs.version import __version__
 
 app = typer.Typer(
     name="chwezi",
-    help="Chwezi Document Suite: local document conversion and management.",
+    help="Chwezi PDF Suite: local document conversion and management.",
     no_args_is_help=True,
     add_completion=False,
 )
@@ -40,9 +40,9 @@ def version(
 ) -> None:
     """Show the application version."""
     if json_output:
-        typer.echo(json.dumps({"name": "Chwezi Document Suite", "version": __version__}))
+        typer.echo(json.dumps({"name": "Chwezi PDF Suite", "version": __version__}))
     else:
-        typer.echo(f"Chwezi Document Suite {__version__}")
+        typer.echo(f"Chwezi PDF Suite {__version__}")
 
 
 @app.command()

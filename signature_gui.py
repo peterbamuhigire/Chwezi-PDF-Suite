@@ -35,7 +35,7 @@ class SignatureApp:
         self.icons = IconStore()
         self._icon_targets: list[tuple[Any, str, str, int, str]] = []
         self.icons.apply_window_icon(root, "app-pdf-signer")
-        self.root.title("PDF Signer · Chwezi Document Suite")
+        self.root.title("PDF Signer · Chwezi PDF Suite")
         self.root.minsize(940, 900)
         self.theme = load_theme()
         self.palette = apply_ttk_theme(root, self.theme)

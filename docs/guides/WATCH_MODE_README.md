@@ -1,6 +1,6 @@
 # Watch Mode - Automatic PDF Organization
 
-This guide documents a PDF-specific automation tool inside the Chwezi Document Suite.
+This guide documents a PDF-specific automation tool inside the Chwezi PDF Suite.
 
 ## What is Watch Mode?
 

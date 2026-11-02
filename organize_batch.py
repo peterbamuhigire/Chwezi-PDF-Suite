@@ -438,7 +438,17 @@ Return ONLY the JSON array."""  # noqa: E501 - prompt text kept verbatim
                 temperature=0.2,
                 max_tokens=8000,
             )
-            response_text = response.choices[0].message.content.strip()
+            if response.choices[0].finish_reason == "length":
+                if len(pdf_list) > 1:
+                    midpoint = len(pdf_list) // 2
+                    self._emit("AI response truncated; retrying as smaller batches.")
+                    first = self.batch_categorize_all(pdf_list[:midpoint], categories)
+                    second = self.batch_categorize_all(pdf_list[midpoint:], categories)
+                    for item in second:
+                        item["number"] += midpoint
+                    return first + second
+                raise RuntimeError("AI classification exceeded the response limit; no files moved.")
+            response_text = (response.choices[0].message.content or "").strip()
 
         if "```json" in response_text:
             response_text = response_text.split("```json", 1)[1].split("```", 1)[0].strip()
@@ -458,17 +468,29 @@ Return ONLY the JSON array."""  # noqa: E501 - prompt text kept verbatim
                 categorizations = json.loads(response_text)
             except json.JSONDecodeError as exc:
                 self._emit(f"Could not parse AI response as JSON: {exc}")
-                self._emit("Falling back to simple categorization.")
-                return self.simple_fallback_categorization(pdf_list)
+                raise RuntimeError(
+                    "AI classification returned invalid JSON; no files moved. Try a smaller batch."
+                ) from exc
 
         if not isinstance(categorizations, list):
             self._emit(f"Expected a JSON list, got {type(categorizations).__name__}.")
-            return self.simple_fallback_categorization(pdf_list)
+            raise RuntimeError("AI classification returned no usable results; no files moved.")
 
+        categorizations = [
+            item for item in categorizations
+            if isinstance(item, dict)
+            and isinstance(item.get("category"), str)
+            and item["category"].strip()
+        ]
         valid = normalise_categorizations(categorizations, len(pdf_list))
+        if len(valid) != len(pdf_list):
+            raise RuntimeError(
+                f"AI classification returned {len(valid)} of {len(pdf_list)} results; "
+                "no files moved. Retry with a smaller batch."
+            )
         if not valid:
             self._emit("AI response contained no usable categorizations.")
-            return self.simple_fallback_categorization(pdf_list)
+            raise RuntimeError("AI classification returned no usable results; no files moved.")
         if len(valid) < len(categorizations):
             self._emit(f"Ignored {len(categorizations) - len(valid)} malformed AI item(s)")
         self._emit(f"Received categorizations for {len(valid)} PDFs")
@@ -657,7 +679,7 @@ def launch_gui():
     class OrganizerGUI:
         def __init__(self, root):
             self.root = root
-            self.root.title("PDF Organizer")
+            self.root.title("PDF Organizer - Chwezi PDF Suite")
             self.root.geometry("960x760")
             self.root.minsize(840, 640)
 

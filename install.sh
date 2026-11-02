@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PDF Librarian Suite - Linux / macOS installer / updater
+# Chwezi PDF Suite - Linux / macOS installer / updater
 # Run once on a new machine to install everything, or again to update.
 
 set -euo pipefail
@@ -16,7 +16,7 @@ fail()  { echo "    ERR $*" >&2; exit 1; }
 # Banner
 echo ""
 echo "====================================================="
-echo "  PDF Librarian Suite - Install / Update (Unix)     "
+echo "  Chwezi PDF Suite - Install / Update (Unix)     "
 echo "====================================================="
 
 # 1. Detect OS

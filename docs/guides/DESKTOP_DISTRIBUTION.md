@@ -2,19 +2,19 @@
 
 ## Outcome
 
-Chwezi Document Suite is packaged as a PyInstaller one-folder multipackage bundle. The launcher
+Chwezi PDF Suite is packaged as a PyInstaller one-folder multipackage bundle. The launcher
 and three tool executables share one `_internal` runtime, so the launcher can open every tool
 without relying on a developer Python installation:
 
 | Executable | Source entry point | Purpose |
 | --- | --- | --- |
-| `ChweziDocumentSuite.exe` | `index-app.py` | suite launcher |
+| `ChweziPDFSuite.exe` | `index-app.py` | suite launcher |
 | `ChweziOrganizer.exe` | `web_interface.py` | localhost PDF organiser |
 | `ChweziSigner.exe` | `pdf_signature.py` | visual PDF signature placement |
 | `ChweziMarkdown.exe` | `documents_to_markdown.py` | document-to-Markdown converter |
 
 Source mode still uses `sys.executable` plus each Python script. Frozen mode resolves the sibling
-executables beside `ChweziDocumentSuite.exe`. This avoids the common PyInstaller failure where a
+executables beside `ChweziPDFSuite.exe`. This avoids the common PyInstaller failure where a
 frozen launcher tries to execute a `.py` file with its own executable.
 
 ## Canonical files
@@ -55,7 +55,7 @@ patterns, and release prerequisites. For this repository it intentionally blocks
 release until a maintainer adds the selected `LICENSE`. It also reports missing Inno Setup as an
 installer warning.
 
-`generate` overwrites `packaging/generated/chwezi-document-suite.spec` with the suite icon on
+`generate` overwrites `packaging/generated/chwezi-pdf-suite.spec` with the suite icon on
 every executable. After regenerating, restore the project override so the organiser, signer and
 Markdown converter keep their own icons (`static/icons/apps/app-*.ico`, as declared per
 application in the manifest); `tests/unit/test_desktop_suite_ui.py` fails if this is missed.
@@ -77,7 +77,7 @@ away from `_internal` or the other executables.
 
 Before release, test on a clean supported Windows machine:
 
-1. Start `ChweziDocumentSuite.exe` and launch all three cards.
+1. Start `ChweziPDFSuite.exe` and launch all three cards.
 2. Switch light/dark mode and restart each GUI to confirm preference persistence.
 3. Convert representative PDF, EPUB, DOCX, DOC, and PPTX files.
 4. Preview and place a signature on a disposable PDF.

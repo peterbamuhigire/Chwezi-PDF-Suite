@@ -59,7 +59,7 @@ def test_customtkinter_colours_expose_light_and_dark_values() -> None:
 def test_frozen_launcher_resolves_installed_sibling_executable(monkeypatch) -> None:
     launcher = _load_launcher()
     monkeypatch.setattr(sys, "frozen", True, raising=False)
-    monkeypatch.setattr(sys, "executable", r"C:\Program Files\Chwezi\ChweziDocumentSuite.exe")
+    monkeypatch.setattr(sys, "executable", r"C:\Program Files\Chwezi\ChweziPDFSuite.exe")
 
     command = launcher.command_for(launcher.TOOLS[1])
 
@@ -130,7 +130,7 @@ def test_manifest_and_pyinstaller_spec_use_distinct_app_icons() -> None:
         manifest["product"]["launcher_executable"]: manifest["product"]["icon"],
         **{app["executable"]: app["icon"] for app in manifest["applications"]},
     }
-    spec_text = (PROJECT_ROOT / "packaging" / "generated" / "chwezi-document-suite.spec").read_text(
+    spec_text = (PROJECT_ROOT / "packaging" / "generated" / "chwezi-pdf-suite.spec").read_text(
         encoding="utf-8"
     )
 
@@ -151,7 +151,7 @@ def test_desktop_suite_manifest_uses_the_batch_organizer() -> None:
 
     assert organizer["script"] == "organize_batch.py"
 
-    spec_path = PROJECT_ROOT / "packaging" / "generated" / "chwezi-document-suite.spec"
+    spec_path = PROJECT_ROOT / "packaging" / "generated" / "chwezi-pdf-suite.spec"
     spec_text = spec_path.read_text(encoding="utf-8")
     assert "[str(PROJECT_ROOT / 'organize_batch.py')]" in spec_text
 

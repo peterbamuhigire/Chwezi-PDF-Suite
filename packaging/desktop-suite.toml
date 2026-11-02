@@ -2,12 +2,12 @@ schema_version = 1
 project_root = ".."
 
 [product]
-name = "Chwezi Document Suite"
-slug = "chwezi-document-suite"
+name = "Chwezi PDF Suite"
+slug = "chwezi-pdf-suite"
 version = "0.2.0"
 publisher = "Chwezi Core Systems"
 app_id = "{7DAE3891-9E59-42EE-B6D3-B968C4D12C02}"
-launcher_executable = "ChweziDocumentSuite"
+launcher_executable = "ChweziPDFSuite"
 launcher_script = "index-app.py"
 audience = "external"
 license_file = "LICENSE"

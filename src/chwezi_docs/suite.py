@@ -1,4 +1,4 @@
-"""Public Python facade for Chwezi Document Suite."""
+"""Public Python facade for Chwezi PDF Suite."""
 
 from __future__ import annotations
 

@@ -1010,7 +1010,7 @@ def launch_gui():
             self._icon_targets = []
             self._status_kind = "info"
             self.icons.apply_window_icon(root, "app-documents-to-markdown")
-            self.root.title("Documents to Markdown · Chwezi Document Suite")
+            self.root.title("Documents to Markdown · Chwezi PDF Suite")
             self.root.minsize(820, 650)
             self.theme = load_theme()
             self.palette = apply_ttk_theme(self.root, self.theme)

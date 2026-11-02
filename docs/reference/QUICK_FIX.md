@@ -18,7 +18,7 @@ The batch file is running from the wrong directory (System32 instead of where yo
 **The easiest fix:** open a terminal in the project folder and launch the suite from there.
 
 ```
-python index-app.py        # Chwezi Document Suite launcher
+python index-app.py        # Chwezi PDF Suite launcher
 python organize_batch.py   # Organizer GUI / CLI
 python web_interface.py    # Web interface (http://localhost:5000)
 ```

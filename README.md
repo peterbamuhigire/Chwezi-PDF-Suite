@@ -1,6 +1,6 @@
-# Chwezi Document Suite
+# Chwezi PDF Suite
 
-Chwezi Document Suite is becoming a privacy-first, offline-capable document-processing
+Chwezi PDF Suite is becoming a privacy-first, offline-capable document-processing
 platform for desktop users, command-line automation, local web workflows, and Python
 integrations. The project is in an early transformation release: its tested foundation and
 legacy Markdown converters are available, while the broader PDF, OCR, workflow, desktop, and
@@ -75,7 +75,7 @@ python C:\wamp64\www\chwezi-dev-engine\skills\languages\python-modern-standards\
 .\scripts\build-desktop-suite.ps1 -UnsignedDevelopmentBuild -SkipInstaller
 ```
 
-The development command creates `release/chwezi-document-suite-0.2.0-windows-x64.zip` and a
+The development command creates `release/chwezi-pdf-suite-0.2.0-windows-x64.zip` and a
 machine-readable evidence file. Do not publish that unsigned artifact. Public releases require a
 repository licence, Authenticode configuration, and Inno Setup. See the
 [desktop distribution guide](docs/guides/DESKTOP_DISTRIBUTION.md) for the full workflow and for

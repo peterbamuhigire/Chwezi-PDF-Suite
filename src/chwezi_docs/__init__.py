@@ -1,4 +1,4 @@
-"""Public API for Chwezi Document Suite."""
+"""Public API for Chwezi PDF Suite."""
 
 from .domain import (
     ChweziError,

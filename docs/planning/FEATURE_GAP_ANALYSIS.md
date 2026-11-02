@@ -1,7 +1,7 @@
 # Feature Gap Analysis
 
 Baseline: commit `030a895`  
-Target: first credible public release of Chwezi Document Suite
+Target: first credible public release of Chwezi PDF Suite
 
 ## Priority summary
 

@@ -3,7 +3,7 @@ requires = ["hatchling>=1.27,<2"]
 build-backend = "hatchling.build"
 
 [project]
-name = "chwezi-document-suite"
+name = "chwezi-pdf-suite"
 dynamic = ["version"]
 description = "Privacy-first local document conversion and management tools"
 readme = "README.md"

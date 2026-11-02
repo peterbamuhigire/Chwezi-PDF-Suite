@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-AI coding assistant guidance for the Chwezi Document Suite (repository: Chwezi-PDF-Suite; formerly pyPDFLibrarianSort).
+AI coding assistant guidance for the Chwezi PDF Suite (repository: Chwezi-PDF-Suite; formerly pyPDFLibrarianSort).
 
 ## Project Overview
 

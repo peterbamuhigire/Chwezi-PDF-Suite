@@ -230,3 +230,52 @@ def test_anthropic_default_is_haiku(tmp_path: Path) -> None:
 )
 def test_only_current_explicit_consent_is_honoured(payload, expected: bool) -> None:
     assert organize_batch.saved_content_analysis_consent(payload) is expected
+
+
+@pytest.mark.parametrize("content", ["", "not json", "{}", "[]", '[{"number":1}]'])
+def test_failed_classification_does_not_move_books(tmp_path, monkeypatch, content):
+    from types import SimpleNamespace
+
+    organizer = make_organizer(tmp_path, provider="deepseek")
+    source = make_source(tmp_path)
+    response = SimpleNamespace(
+        choices=[SimpleNamespace(message=SimpleNamespace(content=content), finish_reason="stop")]
+    )
+    organizer.client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **kwargs: response))
+    )
+    monkeypatch.setattr(organizer, "load_or_analyze_categories", lambda: {})
+    with pytest.raises(RuntimeError, match="classification"):
+        organizer.organize_pdfs()
+    assert source.exists()
+    assert not list(organizer.ebooks_folder.rglob("*.pdf"))
+
+
+def test_truncated_batch_retries_smaller_batches(tmp_path):
+    from types import SimpleNamespace
+
+    organizer = make_organizer(tmp_path, provider="deepseek")
+    responses = iter(
+        [
+            ("length", '[{"number":1'),
+            ("stop", '[{"number":1,"category":"Programming"}]'),
+            ("stop", '[{"number":1,"category":"History"}]'),
+        ]
+    )
+
+    def create(**kwargs):
+        reason, content = next(responses)
+        return SimpleNamespace(
+            choices=[
+                SimpleNamespace(finish_reason=reason, message=SimpleNamespace(content=content))
+            ]
+        )
+
+    organizer.client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=create))
+    )
+    books = [
+        {"filename": name + ".pdf", "stem": name, "title": name} for name in ("Python", "History")
+    ]
+    results = organizer.batch_categorize_all(books, {})
+    assert [(x["number"], x["category"]) for x in results] == [(1, "Programming"), (2, "History")]

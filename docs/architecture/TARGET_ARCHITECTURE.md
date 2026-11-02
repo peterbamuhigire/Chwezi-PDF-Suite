@@ -6,7 +6,7 @@ Architecture style: local-first modular monolith with process-isolated workers
 
 ## Product boundary
 
-Chwezi Document Suite is one local document-processing engine exposed through a Python SDK, `chwezi` CLI, PySide6 desktop shell, local FastAPI adapter and watch-folder supervisor. Server multi-tenancy, team accounts and cloud storage are outside the first public release.
+Chwezi PDF Suite is one local document-processing engine exposed through a Python SDK, `chwezi` CLI, PySide6 desktop shell, local FastAPI adapter and watch-folder supervisor. Server multi-tenancy, team accounts and cloud storage are outside the first public release.
 
 Core invariants:
 

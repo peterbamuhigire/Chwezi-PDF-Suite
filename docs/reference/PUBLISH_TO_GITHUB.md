@@ -1,4 +1,4 @@
-> **Historical:** written for the former pyPDFLibrarianSort repository; the project is now Chwezi Document Suite at github.com/peterbamuhigire/Chwezi-PDF-Suite. Current setup: see [INSTALLATION.md](../../INSTALLATION.md) and [CONTRIBUTING.md](../../CONTRIBUTING.md).
+> **Historical:** written for the former pyPDFLibrarianSort repository; the project is now Chwezi PDF Suite at github.com/peterbamuhigire/Chwezi-PDF-Suite. Current setup: see [INSTALLATION.md](../../INSTALLATION.md) and [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
 # 🚀 Ready to Publish pyPDFLibrarianSort to GitHub
 

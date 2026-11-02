@@ -1,8 +1,8 @@
-# Chwezi Document Suite Project Brief
+# Chwezi PDF Suite Project Brief
 
 ## Product boundary
 
-Chwezi Document Suite is a local-first Python toolkit for document management and manipulation. The repository covers document conversion and extraction, PDF organisation, watched-folder workflows, and visual PDF signature placement. General developer utilities belong in separate tool suites.
+Chwezi PDF Suite is a local-first Python toolkit for document management and manipulation. The repository covers document conversion and extraction, PDF organisation, watched-folder workflows, and visual PDF signature placement. General developer utilities belong in separate tool suites.
 
 ## Current entry points
 
@@ -17,7 +17,7 @@ Chwezi Document Suite is a local-first Python toolkit for document management an
 | Build the Windows executable suite | `scripts/build-desktop-suite.ps1` |
 
 The unified Markdown converter accepts PDF, EPUB, DOCX, DOC, and PPTX. PPTX is no longer a separate application.
-The Windows suite packages the launcher as `ChweziDocumentSuite.exe` with sibling
+The Windows suite packages the launcher as `ChweziPDFSuite.exe` with sibling
 `ChweziOrganizer.exe`, `ChweziSigner.exe`, and `ChweziMarkdown.exe` applications. The launcher
 resolves these sibling executables when frozen and launches the Python scripts during development.
 

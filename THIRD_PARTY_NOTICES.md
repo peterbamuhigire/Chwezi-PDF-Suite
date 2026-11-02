@@ -1,7 +1,7 @@
 # Third-Party Notices
 
 This file is an audit record, not a substitute for the licence texts required by a release.
-Chwezi Document Suite does not currently bundle third-party binaries, fonts, OCR language data,
+Chwezi PDF Suite does not currently bundle third-party binaries, fonts, OCR language data,
 or icons.
 
 Core and proposed optional dependencies include Typer (MIT), pypdf (BSD-3-Clause), pdfplumber

@@ -2,7 +2,7 @@
 
 # PDF Organiser - Web Interface
 
-This guide documents the legacy PDF web interface inside the Chwezi Document Suite.
+This guide documents the legacy PDF web interface inside the Chwezi PDF Suite.
 
 A modern, beautiful web interface for organizing PDFs with drag & drop functionality, real-time categorization, and library browsing.
 

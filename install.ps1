@@ -1,4 +1,4 @@
-# PDF Librarian Suite - Windows installer / updater
+# Chwezi PDF Suite - Windows installer / updater
 # Run once on a new machine to install everything, or again to update.
 # Requires PowerShell 5.1+ (built into Windows 10/11).
 
@@ -25,7 +25,7 @@ function Write-Fail($msg) {
 # Banner
 Write-Host ""
 Write-Host "=====================================================" -ForegroundColor Blue
-Write-Host "  PDF Librarian Suite - Install / Update (Windows)  " -ForegroundColor Blue
+Write-Host "  Chwezi PDF Suite - Install / Update (Windows)  " -ForegroundColor Blue
 Write-Host "=====================================================" -ForegroundColor Blue
 
 # 1. Python

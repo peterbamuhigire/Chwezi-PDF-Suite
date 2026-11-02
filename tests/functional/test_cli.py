@@ -16,7 +16,7 @@ def test_version_json_is_machine_readable() -> None:
 
     assert result.exit_code == 0
     assert json.loads(result.stdout) == {
-        "name": "Chwezi Document Suite",
+        "name": "Chwezi PDF Suite",
         "version": __version__,
     }
 
@@ -35,7 +35,7 @@ def test_human_version_and_capabilities_are_readable() -> None:
     capabilities_result = runner.invoke(app, ["capabilities"])
 
     assert version_result.exit_code == 0
-    assert "Chwezi Document Suite" in version_result.stdout
+    assert "Chwezi PDF Suite" in version_result.stdout
     assert capabilities_result.exit_code == 0
     assert "markdown" in capabilities_result.stdout
 

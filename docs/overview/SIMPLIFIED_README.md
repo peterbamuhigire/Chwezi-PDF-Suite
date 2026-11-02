@@ -1,4 +1,4 @@
-> **Historical:** this describes an earlier simplified version (2 packages: google-genai, pypdf). The project is now Chwezi Document Suite; current dependencies are defined in `pyproject.toml` and `requirements.txt`. See [INSTALLATION.md](../../INSTALLATION.md).
+> **Historical:** this describes an earlier simplified version (2 packages: google-genai, pypdf). The project is now Chwezi PDF Suite; current dependencies are defined in `pyproject.toml` and `requirements.txt`. See [INSTALLATION.md](../../INSTALLATION.md).
 
 # PDF organiser - Simplified Filename-Based Version
 

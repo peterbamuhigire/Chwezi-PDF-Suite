@@ -1,4 +1,4 @@
-"""Public domain contracts for Chwezi Document Suite."""
+"""Public domain contracts for Chwezi PDF Suite."""
 
 from .errors import (
     ChweziError,

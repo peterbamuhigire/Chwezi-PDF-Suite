@@ -347,7 +347,7 @@ wheels = [
 ]
 
 [[package]]
-name = "chwezi-document-suite"
+name = "chwezi-pdf-suite"
 source = { editable = "." }
 dependencies = [
     { name = "pypdf" },

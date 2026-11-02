@@ -41,7 +41,7 @@ def default_registry() -> tuple[ConverterSpec, ...]:
             name="PDF extraction packages",
             kind=RequirementKind.PYTHON_MODULE,
             values=("pdfplumber", "pypdf"),
-            install_hint='pip install "chwezi-document-suite[extract]"',
+            install_hint='pip install "chwezi-pdf-suite[extract]"',
         ),
     )
     pptx_requirements = (
@@ -49,7 +49,7 @@ def default_registry() -> tuple[ConverterSpec, ...]:
             name="PowerPoint extraction package",
             kind=RequirementKind.PYTHON_MODULE,
             values=("pptx",),
-            install_hint='pip install "chwezi-document-suite[extract]"',
+            install_hint='pip install "chwezi-pdf-suite[extract]"',
         ),
     )
     office_requirement = Requirement(

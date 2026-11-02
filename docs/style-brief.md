@@ -1,4 +1,4 @@
-# Chwezi Document Suite visual system
+# Chwezi PDF Suite visual system
 
 ## Direction
 

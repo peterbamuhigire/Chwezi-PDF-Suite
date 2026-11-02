@@ -1,6 +1,6 @@
 # Smart Renaming Guide
 
-This guide documents a PDF-specific renaming workflow inside the Chwezi Document Suite.
+This guide documents a PDF-specific renaming workflow inside the Chwezi PDF Suite.
 
 ## How the System Handles Gibberish Filenames
 

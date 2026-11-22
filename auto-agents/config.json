@@ -1,0 +1,91 @@
+{
+  "runner": "claude",
+  "runner_args": [],
+  "runner_args_by_runner": {
+    "claude": [
+      "--model",
+      "opus",
+      "--effort",
+      "medium",
+      "--permission-mode",
+      "acceptEdits",
+      "--allowedTools",
+      "Read",
+      "Glob",
+      "Grep",
+      "Edit",
+      "Write",
+      "Bash",
+      "PowerShell",
+      "Skill",
+      "TodoWrite",
+      "--disallowedTools",
+      "Bash(git push:*)",
+      "Bash(git checkout main:*)",
+      "Bash(git switch:*)",
+      "Bash(git stash:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git clean:*)",
+      "Bash(git rebase:*)",
+      "Bash(git merge:*)",
+      "Bash(git worktree:*)",
+      "Bash(git branch -D:*)",
+      "PowerShell(git push:*)",
+      "PowerShell(git reset --hard:*)",
+      "PowerShell(git clean:*)"
+    ],
+    "codex": [
+      "--model",
+      "gpt-6.2-sol",
+      "-c",
+      "model_reasoning_effort=\"medium\""
+    ]
+  },
+  "login_mode": "plan",
+  "plan": "auto-agents/PLAN.md",
+  "worktree_root": "../chwezi-knowledge-bank-autorun",
+  "verify": [
+    [
+      "python",
+      "scripts/kb.py",
+      "validate"
+    ]
+  ],
+  "final_verify": [
+    [
+      "python",
+      "-B",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "scripts",
+      "-p",
+      "test_kb.py"
+    ],
+    [
+      "python",
+      "-B",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "auto-agents/tests"
+    ]
+  ],
+  "session_timeout_seconds": 7200,
+  "verification_timeout_seconds": 5400,
+  "max_hours": 24,
+  "max_sessions": 60,
+  "publish": false,
+  "remote": "origin",
+  "target_branch": "main",
+  "max_rate_retries": 3,
+  "initial_backoff_seconds": 120,
+  "max_backoff_seconds": 3600,
+  "usage_wait_seconds": 18000,
+  "max_gate_failures": 3,
+  "recovery_policy": "local-only",
+  "verification_replay_safe": true,
+  "max_recovery_attempts": 2
+}

@@ -128,7 +128,7 @@ python pdf_signature.py --signature sig.png --input doc.pdf --position bottom-le
 
 Signature size as percentage of A4 portrait width (10-100%):
 
-- **Default:** 25% (0.25)
+- **Default:** 11% (0.11)
 - **Small:** 15-20%
 - **Medium:** 25-35%
 - **Large:** 40-50%
@@ -317,7 +317,7 @@ python pdf_signature.py \
 
 **Solutions:**
 - Adjust `--scale` parameter (0.1-1.0)
-- Default 0.25 (25%) works for most cases
+- Default 0.11 (11%) works for most cases
 - For small signatures: 0.15-0.20
 - For large signatures: 0.4-0.5
 
@@ -447,7 +447,7 @@ Optional:
   --output PATH         Output file/directory
   --pages OPTION        all|first|last|odd|even|"range"
   --position POS        bottom-right|bottom-left|top-right|top-left
-  --scale FLOAT         0.1-1.0 (default: 0.25)
+  --scale FLOAT         0.1-1.0 (default: 0.11)
   --x-offset FLOAT      0.1-2.0 inches (default: 0.5)
   --y-offset FLOAT      0.1-2.0 inches (default: 0.5)
   --opacity FLOAT       0.1-1.0 (default: 1.0)

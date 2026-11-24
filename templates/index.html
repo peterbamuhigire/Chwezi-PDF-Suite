@@ -179,7 +179,7 @@
 
                     <div class="form-group">
                         <label for="skipPages">Skip Pages (Optional)</label>
-                        <input type="text" id="skipPages" class="input" placeholder="e.g., 2,5-7,15" onchange="updateSignatureConfig()">
+                        <input type="text" id="skipPages" class="input" placeholder="Comma-separated, e.g. 2,5,9 or 1-3,10" onchange="updateSignatureConfig()">
                         <small>Pages to exclude from signing (applied after page selection above)</small>
                     </div>
 
@@ -202,8 +202,8 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="scaleSlider"><span class="ui-icon icon-expand" aria-hidden="true"></span>Size (<span id="scaleValue">25</span>% of A4 width)</label>
-                        <input type="range" id="scaleSlider" class="slider" min="10" max="100" value="25" oninput="updateScale(this.value)">
+                        <label for="scaleSlider"><span class="ui-icon icon-expand" aria-hidden="true"></span>Size (<span id="scaleValue">11</span>% of A4 width)</label>
+                        <input type="range" id="scaleSlider" class="slider" min="10" max="100" value="11" oninput="updateScale(this.value)">
                     </div>
 
                     <div class="form-group">

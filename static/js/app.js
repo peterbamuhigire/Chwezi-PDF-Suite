@@ -573,7 +573,7 @@ let signatureConfig = {
     pages: 'all',
     skipPages: '',
     position: 'bottom-left',
-    scale: 0.25,
+    scale: 0.11,
     xOffset: 0.5,
     yOffset: 0.5,
     opacity: 1.0,
@@ -988,7 +988,7 @@ function resetSignature() {
         signatureDimensions: null,
         pages: 'all',
         position: 'bottom-left',
-        scale: 0.25,
+        scale: 0.11,
         xOffset: 0.5,
         yOffset: 0.5,
         opacity: 1.0,
@@ -1006,13 +1006,13 @@ function resetSignature() {
     document.getElementById('pdfSignInput').value = '';
 
     // Reset sliders
-    document.getElementById('scaleSlider').value = 25;
+    document.getElementById('scaleSlider').value = 11;
     document.getElementById('xOffsetSlider').value = 0.5;
     document.getElementById('yOffsetSlider').value = 0.5;
     document.getElementById('opacitySlider').value = 100;
     document.getElementById('rotationSlider').value = 0;
 
-    updateScale(25);
+    updateScale(11);
     updateXOffset(0.5);
     updateYOffset(0.5);
     updateOpacity(100);

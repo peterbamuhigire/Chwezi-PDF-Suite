@@ -57,7 +57,7 @@ class PDFSignature:
     A4_PORTRAIT_WIDTH_POINTS = 595.2755905511812  # 210 mm at 72 PDF points/inch
 
     def __init__(self, signature_image_path, position='bottom-left',
-                 scale=0.3, x_offset=0.5, y_offset=0.5, opacity=1.0,
+                 scale=0.11, x_offset=0.5, y_offset=0.5, opacity=1.0,
                  rotation=0, pages='all', skip_pages=''):
         """
         Initialize PDF signature configuration.
@@ -140,17 +140,31 @@ class PDFSignature:
 
     @staticmethod
     def _parse_page_range(range_str):
-        """Parse a range string like '1,3,5-10' into a set of page numbers."""
+        """Parse page lists like '2,5,9', '2, 5' or '1-3,10' into a set.
+
+        Commas are the documented separator; semicolons and plain spaces
+        are also accepted so '2 5' or '2;5' work. Ranges may contain spaces
+        around the dash ('1 - 3').
+        """
+        normalised = re.sub(r'\s*-\s*', '-', range_str.strip())
         pages = set()
-        for part in range_str.split(','):
-            part = part.strip()
+        for part in re.split(r'[,;\s]+', normalised):
             if not part:
                 continue
-            if '-' in part:
-                start, end = part.split('-', 1)
-                pages.update(range(int(start), int(end) + 1))
-            else:
-                pages.add(int(part))
+            match = re.fullmatch(r'(\d+)(?:-(\d+))?', part)
+            if not match:
+                raise ValueError(
+                    f"Invalid page entry '{part}'. Use page numbers separated "
+                    "by commas, e.g. '2,5,9' or '1-3,10'"
+                )
+            start = int(match.group(1))
+            end = int(match.group(2)) if match.group(2) else start
+            if start < 1 or end < start:
+                raise ValueError(
+                    f"Invalid page range '{part}'. Page numbers start at 1 "
+                    "and a range must run low to high"
+                )
+            pages.update(range(start, end + 1))
         return pages
 
     def _should_sign_page(self, page_num, total_pages):
@@ -664,7 +678,7 @@ def _legacy_main():
             self.range_var   = tk.StringVar(value='1')
             self.skip_var  = tk.StringVar(value='')
             self.position    = tk.StringVar(value='bottom-left')
-            self.scale       = tk.DoubleVar(value=25)
+            self.scale       = tk.DoubleVar(value=11)
             self.x_offset    = tk.DoubleVar(value=0.5)
             self.y_offset    = tk.DoubleVar(value=0.5)
             self.opacity     = tk.DoubleVar(value=100)
@@ -712,7 +726,7 @@ def _legacy_main():
                 row=2, column=0, sticky='w', pady=2)
             ttk.Entry(f_cfg, textvariable=self.skip_var, width=16).grid(
                 row=2, column=1, sticky='w', padx=4)
-            ttk.Label(f_cfg, text='e.g. 3  or  1,5,9-12',
+            ttk.Label(f_cfg, text='e.g. 3  or  2,5,9  or  1-3,10',
                       foreground='#888').grid(row=2, column=2, sticky='w')
 
             # position grid

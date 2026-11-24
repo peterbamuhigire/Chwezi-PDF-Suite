@@ -497,7 +497,7 @@ def process_signature():
     # Get configuration
     config = data.get('config', {})
     position = config.get('position', 'bottom-right')
-    scale = config.get('scale', 0.25)
+    scale = config.get('scale', 0.11)
     x_offset = config.get('xOffset', 0.5)
     y_offset = config.get('yOffset', 0.5)
     opacity = config.get('opacity', 1.0)

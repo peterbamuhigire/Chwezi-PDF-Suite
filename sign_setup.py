@@ -258,7 +258,7 @@ def main():
     print("How large should the signature be?")
     print("Size is specified as percentage of A4 portrait width (10-100%).")
     print()
-    scale_percent = get_float("Signature size (%)", 10, 100, default=25)
+    scale_percent = get_float("Signature size (%)", 10, 100, default=11)
     scale = scale_percent / 100.0
     print(f"OK Scale: {scale_percent}% of A4 portrait width")
 
@@ -290,7 +290,7 @@ def main():
     # Step 10: Configure skip pages (optional)
     print_header(10, "Skip Pages (Optional)")
     print("Enter pages to exclude from signing (applied after page selection).")
-    print("Examples: '2,5' or '1-3,10' or leave empty to skip none")
+    print("Separate pages with commas. Examples: '2,5,9' or '1-3,10' or leave empty to skip none")
     print()
     skip_pages = input("Skip pages (press Enter to skip none): ").strip()
     if skip_pages:
